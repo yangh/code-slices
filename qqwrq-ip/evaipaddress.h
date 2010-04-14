@@ -29,26 +29,26 @@
 	this class can be used as below:
 	
 	EvaIPAddress addr("255.255.255.255"); // or EvaIPAddress addr(0xffffffff) ;
-	uint ip = addr.IP();
+	uint64_t ip = addr.IP();
 	std::string strIP = addr.toString();
  */
  class EvaIPAddress{
  public:
  	EvaIPAddress() {};
- 	EvaIPAddress(const uint ip);
+ 	EvaIPAddress(const uint64_t ip);
 	EvaIPAddress(const std::string &strIP);
 	EvaIPAddress(const EvaIPAddress &address);
 	
-	void setAddress(const uint ip);
+	void setAddress(const uint64_t ip);
 	void setAddress(const std::string &strIP);
 	const bool isValid() const;
-	const uint IP() const;
+	const uint64_t IP() const;
 	const std::string toString();
 	EvaIPAddress &operator= (const EvaIPAddress &rhs);
 private:
 	bool isValidIP;
-	uint mIP;
-	uint getIntIP(const std::string &strIP);
+	uint64_t mIP;
+	uint64_t getIntIP(const std::string &strIP);
 };
  
 #endif

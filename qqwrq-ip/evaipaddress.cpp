@@ -19,9 +19,11 @@
  ***************************************************************************/
   
 #include "evaipaddress.h"
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-EvaIPAddress::EvaIPAddress(const uint ip)
+EvaIPAddress::EvaIPAddress(const uint64_t ip)
 	:isValidIP(false)
 {
 	mIP = ip;
@@ -43,7 +45,7 @@ EvaIPAddress::EvaIPAddress(const EvaIPAddress &address)
 	isValidIP = address.isValid();
 }
 
-void EvaIPAddress::setAddress(const uint ip)
+void EvaIPAddress::setAddress(const uint64_t ip)
 {
 	mIP = ip;
 }
@@ -58,7 +60,7 @@ const bool EvaIPAddress::isValid() const
 	return isValidIP;
 }
 
-const uint EvaIPAddress::IP() const
+const uint64_t EvaIPAddress::IP() const
 {
 	return mIP;
 }
@@ -78,10 +80,10 @@ EvaIPAddress &EvaIPAddress::operator= (const EvaIPAddress &rhs)
 	return *this;
 }
 
-uint EvaIPAddress::getIntIP(const std::string &strIP)
+uint64_t EvaIPAddress::getIntIP(const std::string &strIP)
 {
 	int num = 0;
-	for(uint i=0; i< strIP.length(); i++)
+	for(uint64_t i=0; i< strIP.length(); i++)
 		if(strIP[i] == '.') num++;
 	// check if it consists of 4 parts
 	if(num != 3){
@@ -93,7 +95,7 @@ uint EvaIPAddress::getIntIP(const std::string &strIP)
 	unsigned char parts[4];
 	int start = 0, end = 0;
 	for(int i=0; i<4; i++){
-		for(uint j= start; j<strIP.length(); j++){
+		for(uint64_t j= start; j<strIP.length(); j++){
 			if(strIP[j] == '.'){
 				end = j;
 				break;
@@ -114,7 +116,7 @@ uint EvaIPAddress::getIntIP(const std::string &strIP)
 		parts[i] = (unsigned char)tmpInt;
 		start = end + 1;
 	}
-	// put all 4 parts into one uint
-	return ((uint)parts[0])<<24 | ((uint)parts[1])<<16 | ((uint)parts[2])<<8 | parts[3];
+	// put all 4 parts into one uint64_t
+	return ((uint64_t)parts[0])<<24 | ((uint64_t)parts[1])<<16 | ((uint64_t)parts[2])<<8 | parts[3];
 }
 
