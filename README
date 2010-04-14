@@ -4,10 +4,10 @@ Code slices
 
  Some codes not worth of creating a new repository. 
 
-qqwrp-ip
+qqwry-ip
 --------
 
- A small tool to query IP location info from 'QQWry.dat',
+ A small tool to query IP location (in China only) info from 'QQWry.dat',
 parser of the data file is come from 'eva' project.
 
- You must first to download the 'QQWry.dat' to run the qqwrp-ip.
+ You must first to download the 'QQWry.dat' to run the qqwry-ip.
