@@ -1,0 +1,11 @@
+Some assembly language code.
+
+References
+===========
+
+ * Using Assembly Language in Linux [1]
+
+ *Linux Assembly HOWTO [2]
+
+[1] http://asm.sourceforge.net/articles/linasm.html
+[2] http://www.faqs.org/docs/Linux-HOWTO/Assembly-HOWTO.html
