@@ -52,7 +52,7 @@ static byte bt_char2_to_byte (const char *c, int size)
     return ret;
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
     char *xx;
     byte n = 0;
@@ -68,6 +68,40 @@ int main(void)
     xx = "1AF";
     n = bt_char2_to_byte (xx, 3);
     printf ("Hex %s to dec: %d\n", xx, n);
+
+    /* hex-oct <size-per-chunk> <hex-string> */
+
+    if (argc >= 3) {
+        int size = 2;
+        int len = 0;
+        int i;
+
+        size = atoi (argv[1]);
+
+        xx = argv[2];
+        len = strlen(xx);
+
+        for (i = 0; i < len / size; i ++) {
+            if (i > 0) {
+                printf (".");
+            }
+
+            n = bt_char2_to_byte (xx, size);
+            printf ("%d", n);
+            xx += size;
+        }
+
+        size = len % size;
+        if (size > 0) {
+            if (i > 0) {
+                printf (".");
+            }
+            n = bt_char2_to_byte (xx, size);
+            printf ("%d.", n);
+        }
+
+        printf ("\n");
+    }
 
     return 0;
 }
