@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2007 Google Inc.
+# Copyright 2010 pen9u1n
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,8 +66,24 @@ class MainHandler(webapp.RequestHandler):
 
         return address
 
+    def unshake(self, input_str):
+        output_str = ""
+
+        i = 0
+        n = 0
+        while (n < len(input_str) / 2):
+            output_str += input_str[i + 1]
+            output_str += input_str[i]
+            i += 2
+            n += 1
+
+        if (i < len(input_str)):
+            output_str += input_str[-1]
+
+        return output_str
+
     def get(self):
-        domain = self.request.query_string
+        domain = self.unshake(self.request.query_string)
         ret = self.dns_lookup(domain)
         self.response.out.write(ret)
 
