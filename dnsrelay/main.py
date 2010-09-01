@@ -38,7 +38,14 @@ class MainHandler(webapp.RequestHandler):
 
     # FIXME: Find a nother way to parse result
     def _parse_address(self, domain, data):
-        start = data[ADDRESSOFFSET + len(domain):]
+
+        # lookupserver.com filtered '-' char in output.
+        special_chars = 0
+        for ch in domain:
+            if ch == '-':
+                special_chars += 1
+
+        start = data[ADDRESSOFFSET + len(domain) - special_chars:]
         off = 0
         found = False
         address = ""
