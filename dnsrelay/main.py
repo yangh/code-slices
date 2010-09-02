@@ -49,7 +49,10 @@ class MainHandler(webapp.RequestHandler):
         off = 0
         found = False
         address = ""
-        while (off < len(start)):
+
+        max_ip_len = 16
+
+        while (off < len(start) and off < max_ip_len):
             if (start[off] == '<'):
                 found = True
                 break
