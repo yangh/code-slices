@@ -47,7 +47,7 @@ class DNSHostsManagerHandler(webapp.RequestHandler):
     def get(self):
         dhm = DNSHostsManager()
         dhm.load_hosts("cmwrap.googlecode.com", "/svn/wiki/hosts.wiki")
-        pass
+        self.response.out.write("Hosts count = %d" % dhm.count())
 
 def main():
     application = webapp.WSGIApplication([('/', MainHandler),

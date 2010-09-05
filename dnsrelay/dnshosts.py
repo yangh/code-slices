@@ -55,19 +55,29 @@ class DNSHostsManager():
         if (len(ip) == 0 or len(domain) == 0):
             return
 
-        host = Host()
-        host.ip = ip
-        host.domain = domain
-        host.put()
+        updated = False
+        hosts = db.GqlQuery("SELECT * FROM Host WHERE domain = :1 LIMIT 1", domain)
+        for host in hosts:
+            host.ip = ip
+            db.put(host)
+            updated = True
+
+        if (not updated):
+            host = Host(ip = ip, domain = domain)
+            host.put()
 
     def del_host(self, domain):
         if (len(domain) == 0):
             return
 
-        db.GqlQuery("DELETE FROM Host WHERE domain = :1 LIMIT 1", domain)
+        hosts = db.GqlQuery("SELECT * FROM Host WHERE domain = :1 LIMIT 1", domain)
+        for host in hosts:
+            host.delete()
 
     def del_all(self):
-        pass
+        hosts = Host.all()
+        for host in hosts:
+            host.delete()
 
     def _parse_hosts(self, data):
         hosts = []
@@ -94,9 +104,7 @@ class DNSHostsManager():
             ip = strs[0]
             doms = strs[1:]
             for dom in doms:
-                host = Host()
-                host.ip = ip
-                host.domain = dom
+                host = Host(ip = ip, domain = dom)
                 hosts.append(host)
 
         f.close()
@@ -111,8 +119,15 @@ class DNSHostsManager():
         hosts = self._parse_hosts(data)
 
         for host in hosts:
-            host.put()
+            self.add_host(host.ip, host.domain)
             #print "%s, %s" % (host.ip, host.domain)
+
+    def count(self):
+        count = 0
+        hosts = Host.all()
+        count = hosts.count()
+
+        return count
 
 def main():
     print "Do some test here."
