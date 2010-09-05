@@ -28,26 +28,61 @@ import httplib
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
-        domain = DNS.unshake(self.request.query_string)
+        domain = self.request.get("d")
+        use_hosts = self.request.get("uh", default_value="0")
+
+        # Compatible with dnsrelay 1.0, all query string as domain
+        if (domain == ""):
+            domain = self.request.query_string
+
+        domain = DNS.unshake(domain)
         if (len(domain) == 0):
             self.response.out.write(CANT_RESOLVE)
             return
 
-        dns = DNSHosts()
-        ret = dns.lookup(domain)
-        if (ret != CANT_RESOLVE):
-            self.response.out.write(ret)
-            return
+        # Query from hosts datastore
+        if (use_hosts == "1"):
+            dns = DNSHosts()
+            ret = dns.lookup(domain)
+            if (ret != CANT_RESOLVE):
+                self.response.out.write(ret)
+                #print "DNS from Hosts"
+                return
 
+        # Query from web
         dns = DNSWeb()
         ret = dns.lookup(domain)
         self.response.out.write(ret)
 
 class DNSHostsManagerHandler(webapp.RequestHandler):
     def get(self):
+        op = self.request.get("op", default_value="sum")
         dhm = DNSHostsManager()
-        dhm.load_hosts("cmwrap.googlecode.com", "/svn/wiki/hosts.wiki")
-        self.response.out.write("Hosts count = %d" % dhm.count())
+
+        if (op == "sum"):
+            self.response.out.write("Hosts count = %d." % dhm.count())
+            return
+
+        if (op == "listhost"):
+            hosts = dhm.all()
+            for h in hosts:
+                self.response.out.write("%s, %s\n" % (h.ip, h.domain))
+            return
+
+        if (op == "delall"):
+            dhm.del_all()
+            self.response.out.write("Hosts count = %d." % dhm.count())
+            return
+
+        if (op == "load"):
+            dhm.load_hosts("cmwrap.googlecode.com", "/svn/wiki/hosts.wiki")
+            self.response.out.write("Loaded %d hosts." % dhm.count())
+
+        if (op == "find"):
+            q = self.request.get("q")
+            hosts = dhm.find(q)
+            for h in hosts:
+                self.response.out.write("%s, %s\n" % (h.ip, h.domain))
 
 def main():
     application = webapp.WSGIApplication([('/', MainHandler),

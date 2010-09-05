@@ -102,6 +102,11 @@ class DNSHostsManager():
 
             #print "Hosts line %s" % line
             ip = strs[0]
+
+            # Ignore localhost
+            if (ip == "127.0.0.1"):
+                continue
+
             doms = strs[1:]
             for dom in doms:
                 host = Host(ip = ip, domain = dom)
@@ -128,6 +133,27 @@ class DNSHostsManager():
         count = hosts.count()
 
         return count
+
+    def all(self):
+        ret = []
+        hosts = Host.all()
+        for host in hosts:
+            ret.append(host)
+
+        return ret
+
+    def find(self, query):
+        ret = []
+        if (len(query) == 0):
+            return ret
+
+        #hosts = db.GqlQuery("SELECT * FROM Host WHERE domain = :1", query)
+        hosts = []
+
+        for host in hosts:
+            ret.append(host)
+
+        return ret
 
 def main():
     print "Do some test here."
