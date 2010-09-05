@@ -17,78 +17,41 @@
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
+from dnsrelay import DNS
+from dnsrelay import DNSWeb
+from dnsrelay import CANT_RESOLVE
+from dnshosts import DNSHosts
+from dnshosts import DNSHostsManager
+
 #import base64
 import httplib 
 
-DNSSERVER="8.8.8.8"
-LOOKUPSERVER="www.lookupserver.com"
-ADDRESSOFFSET=769
-URL="/?forward_dns=%s&submit=Lookup"
-CANT_RESOLVE="-"
-
 class MainHandler(webapp.RequestHandler):
-    def do_dns_lookup(self, domain):
-        httpconn = httplib.HTTPConnection(LOOKUPSERVER, 80)
-        target = URL % domain
-        httpconn.request('GET', target)
-        response = httpconn.getresponse()
-        data = response.read(1024)
-
-        return data
-
-    # FIXME: Find a nother way to parse result
-    def _parse_address(self, domain, data):
-        start = data[ADDRESSOFFSET + len(domain):]
-        off = 0
-        found = False
-        address = ""
-        while (off < len(start)):
-            if (start[off] == '<'):
-                found = True
-                break
-            else:
-                off = off + 1
-        if found:
-            address = start[0:off]
-
-        return address
-
-    def dns_lookup(self, domain):
-        if (len(domain) == 0):
-            return CANT_RESOLVE
-        
-        data = self.do_dns_lookup(domain)
-        address = self._parse_address (domain, data)
-
-        if (len(address) == 0 or address == domain):
-            #print "Cann't resolve this domain, equal to request"
-            address = CANT_RESOLVE
-
-        return address
-
-    def unshake(self, input_str):
-        output_str = ""
-
-        i = 0
-        n = 0
-        while (n < len(input_str) / 2):
-            output_str += input_str[i + 1]
-            output_str += input_str[i]
-            i += 2
-            n += 1
-
-        if (i < len(input_str)):
-            output_str += input_str[-1]
-
-        return output_str
-
     def get(self):
-        domain = self.unshake(self.request.query_string)
-        ret = self.dns_lookup(domain)
+        domain = DNS.unshake(self.request.query_string)
+        if (len(domain) == 0):
+            self.response.out.write(CANT_RESOLVE)
+            return
+
+        dns = DNSHosts()
+        ret = dns.lookup(domain)
+        if (ret != CANT_RESOLVE):
+            self.response.out.write(ret)
+            return
+
+        dns = DNSWeb()
+        ret = dns.lookup(domain)
         self.response.out.write(ret)
 
+class DNSHostsManagerHandler(webapp.RequestHandler):
+    def get(self):
+        dhm = DNSHostsManager()
+        dhm.load_hosts("cmwrap.googlecode.com", "/svn/wiki/hosts.wiki")
+        pass
+
 def main():
-    application = webapp.WSGIApplication([('/', MainHandler)],
+    application = webapp.WSGIApplication([('/', MainHandler),
+                                          ('/dhm/', DNSHostsManagerHandler)],
                                          debug=True)
     util.run_wsgi_app(application)
 
