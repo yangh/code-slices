@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from google.appengine.api import urlfetch
 from google.appengine.ext import db
 from dnsrelay import DNS
 from dnsrelay import CANT_RESOLVE
@@ -120,7 +121,14 @@ class DNSHostsManager():
         httpconn = httplib.HTTPConnection(host, 80)
         httpconn.request('GET', target)
         response = httpconn.getresponse()
-        data = response.read()
+
+        data = ""
+
+        try:
+            data = response.read()
+        except urlfetch.DownloadError:
+            return
+
         hosts = self._parse_hosts(data)
 
         for host in hosts:
