@@ -19,6 +19,7 @@ from google.appengine.api import urlfetch
 
 #import base64
 import httplib 
+import logging
 
 CANT_RESOLVE = "-"
 
@@ -53,16 +54,18 @@ class DNSWeb(DNS):
         self.url = "/?forward_dns=%s&submit=Lookup"
     
     def do_web_lookup(self, domain):
-        httpconn = httplib.HTTPConnection(self.server, 80)
-        target = self.url % domain
-        httpconn.request('GET', target)
         data = ""
 
         try:
+            httpconn = httplib.HTTPConnection(self.server, 80)
+            target = self.url % domain
+            logging.debug("Query: %s%s" % (self.server, target))
+
+            httpconn.request('GET', target)
             response = httpconn.getresponse()
             data = response.read(1024)
         except urlfetch.DownloadError:
-            pass
+            logging.error("Failed to query: %s%s" % (self.server, target))
 
         return data
 

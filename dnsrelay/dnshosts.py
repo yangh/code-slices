@@ -17,10 +17,13 @@
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
+
 from dnsrelay import DNS
 from dnsrelay import CANT_RESOLVE
-import httplib 
 from StringIO import StringIO
+
+import httplib 
+import logging
 
 class Host(db.Model):
     ip = db.StringProperty()
@@ -118,15 +121,17 @@ class DNSHostsManager():
         return hosts
 
     def load_hosts(self, host, target):
-        httpconn = httplib.HTTPConnection(host, 80)
-        httpconn.request('GET', target)
-        response = httpconn.getresponse()
-
         data = ""
 
         try:
+            logging.debug("Query: %s%s" % (host, target))
+
+            httpconn = httplib.HTTPConnection(host, 80)
+            httpconn.request('GET', target)
+            response = httpconn.getresponse()
             data = response.read()
         except urlfetch.DownloadError:
+            logging.error("Failed to query: %s%s" % (host, target))
             return
 
         hosts = self._parse_hosts(data)
