@@ -17,9 +17,9 @@
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-from dnsrelay import DNS
+from dns import DNS
+from dns import CANT_RESOLVE
 from dnsrelay import DNSWeb
-from dnsrelay import CANT_RESOLVE
 from dnshosts import DNSHosts
 from dnshosts import DNSHostsManager
 
@@ -35,10 +35,11 @@ class MainHandler(webapp.RequestHandler):
         if (domain == ""):
             domain = self.request.query_string
 
-        domain = DNS.unshake(domain)
-        if (len(domain) == 0):
+        if (len(domain) == 0 or len(domain) > 255):
             self.response.out.write(CANT_RESOLVE)
             return
+
+        domain = DNS.unshake(domain)
 
         # Query from hosts datastore
         if (use_hosts == "1"):

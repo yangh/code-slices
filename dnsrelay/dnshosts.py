@@ -18,23 +18,21 @@
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
 
-from dnsrelay import DNS
-from dnsrelay import CANT_RESOLVE
+from dns import DNS
+from dns import Host
+from dns import CANT_RESOLVE
 from StringIO import StringIO
 
 import httplib 
 import logging
 
-class Host(db.Model):
-    ip = db.StringProperty()
-    domain = db.StringProperty()
-
 class DNSHosts(DNS):
     def __init__(self):
         self.server = "8.8.8.8"
+        self.cm = DNSCacheManager()
 
     def do_hosts_lookup(self, domain):
-        hosts = db.GqlQuery("SELECT * FROM Host WHERE domain = :1 LIMIT 2", domain)
+        hosts = db.GqlQuery("SELECT * FROM Host WHERE domain = :1 LIMIT 1", domain)
         
         for host in hosts:
             if host.ip:
@@ -43,10 +41,11 @@ class DNSHosts(DNS):
         return CANT_RESOLVE
 
     def lookup(self, domain):
-        if (len(domain) == 0):
-            return CANT_RESOLVE
-        
-        address = self.do_hosts_lookup(domain)
+        address = CANT_RESOLVE
+        if (len(domain) > 0):
+            address = self.do_hosts_lookup(domain)
+
+        self.cm.update(domain, address, address != CANT_RESOLVE)
         
         return address
 

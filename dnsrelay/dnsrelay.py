@@ -17,41 +17,20 @@
 
 from google.appengine.api import urlfetch
 
+from dns import DNS
+from dns import CANT_RESOLVE
+from dnscache import DNSCacheManager
+
 #import base64
 import httplib 
 import logging
-
-CANT_RESOLVE = "-"
-
-class DNS():
-    def __init__(self):
-        pass
-    
-    def lookup(self, domain):
-        pass
-    
-    @staticmethod
-    def unshake(input_str):
-        output_str = ""
-
-        i = 0
-        n = 0
-        while (n < len(input_str) / 2):
-            output_str += input_str[i + 1]
-            output_str += input_str[i]
-            i += 2
-            n += 1
-
-        if (i < len(input_str)):
-            output_str += input_str[-1]
-
-        return output_str
 
 class DNSWeb(DNS):
     def __init__(self):
         self.server = "www.lookupserver.com"
         self.add_offset = 769
         self.url = "/?forward_dns=%s&submit=Lookup"
+        self.cm = DNSCacheManager()
     
     def do_web_lookup(self, domain):
         data = ""
@@ -96,14 +75,16 @@ class DNSWeb(DNS):
         return address
 
     def lookup(self, domain):
-        if (len(domain) == 0):
-            return CANT_RESOLVE
-        
-        data = self.do_web_lookup(domain)
-        address = self._parse_address (domain, data)
+        address = CANT_RESOLVE
+        if (len(domain) > 0):
+            data = self.do_web_lookup(domain)
+            address = self._parse_address (domain, data)
 
         if (len(address) == 0 or address == domain):
-            return CANT_RESOLVE
+            address = CANT_RESOLVE
+
+        logging.debug("Resovled: %s" % address)
+        self.cm.update(domain, address, address != CANT_RESOLVE)
 
         return address
 
