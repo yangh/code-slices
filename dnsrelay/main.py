@@ -25,6 +25,7 @@ from dnshosts import DNSHostsManager
 
 #import base64
 import httplib 
+import logging
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
@@ -35,11 +36,16 @@ class MainHandler(webapp.RequestHandler):
         if (domain == ""):
             domain = self.request.query_string
 
-        if (len(domain) == 0 or len(domain) > 255):
+        if len(domain) == 0:
             self.response.out.write(CANT_RESOLVE)
             return
 
         domain = DNS.unshake(domain)
+
+        if not DNS.isValidHostname(domain):
+            logging.debug("Invalid domain name: %s" % domain)
+            self.response.out.write(CANT_RESOLVE)
+            return
 
         # Query from hosts datastore
         if (use_hosts == "1"):

@@ -16,6 +16,7 @@
 #
 
 from google.appengine.ext import db
+import re
 
 CANT_RESOLVE = "-"
 
@@ -46,6 +47,31 @@ class DNS():
             output_str += input_str[-1]
 
         return output_str
+
+    """
+    The following code is from:
+        http://stackoverflow.com/questions/2532053/validate-hostname-string-in-python
+    """
+    @staticmethod
+    def isValidHostname(hostname):
+        if len(hostname) > 255:     # Max domain name length
+            return False
+
+        if hostname.endswith("."):  # A single trailing dot is legal, strip it
+            hostname = hostname[:-1]
+
+        if hostname.find(".") == -1: # At least one section, as a domain name in the internet. - for dnsrelay
+            return False
+
+        disallowed = re.compile("[^A-Z\d-]", re.IGNORECASE)
+
+        return all(                             # Split by labels and verify individually
+            (label and len(label) <= 63         # length is within proper range
+             and not label.startswith("-")      # no bordering hyphens
+             and not label.endswith("-")
+             and not disallowed.search(label))  # contains only legal characters
+            for label in hostname.split("."))
+
 
 def main():
     print "Do some test here."
