@@ -64,16 +64,16 @@ class MainHandler(webapp.RequestHandler):
             ret = dns.lookup(domain)
             self.response.out.write(ret)
             return
-        except WebRequestError as e:
-            logging.error(e)
+        except WebRequestError:
+            logging.error("Web request error")
 
         dns = DNSWebBlokeOcom()
         try:
             ret = dns.lookup(domain)
             self.response.out.write(ret)
             return
-        except WebRequestError as e:
-            logging.error(e)
+        except WebRequestError:
+            logging.error("Web request error")
 
         # Can't be resovled
         self.response.out.write(CANT_RESOLVE)
