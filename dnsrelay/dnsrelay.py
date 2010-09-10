@@ -20,16 +20,23 @@ from google.appengine.api import urlfetch
 from dns import DNS
 from dns import CANT_RESOLVE
 from dnscache import DNSCacheManager
+from StringIO import StringIO
 
 #import base64
 import httplib 
 import logging
 
+class WebRequestError(Exception):
+    def __init__(self, msg = "Web request error"):
+        self.msg = msg
+    def __str__(self):
+        return self.msg
+
 class DNSWeb(DNS):
     def __init__(self):
-        self.server = "www.lookupserver.com"
-        self.add_offset = 769
-        self.url = "/?forward_dns=%s&submit=Lookup"
+        self.server = "DNSWeb"
+        self.target = ""
+        self.read_max = 1024
         self.cm = DNSCacheManager()
     
     def do_web_lookup(self, domain):
@@ -37,17 +44,43 @@ class DNSWeb(DNS):
 
         try:
             httpconn = httplib.HTTPConnection(self.server, 80)
-            target = self.url % domain
+            target = self.target % domain
             logging.debug("Query: %s%s" % (self.server, target))
 
             httpconn.request('GET', target)
             response = httpconn.getresponse()
-            data = response.read(1024)
+            data = response.read(self.read_max)
         except urlfetch.DownloadError:
             logging.error("Failed to query: %s%s" % (self.server, target))
+            raise WebRequestError()
 
         return data
 
+    def _parse_address(self, domain, data):
+        return CANT_RESOLVE
+
+    def lookup(self, domain):
+        address = CANT_RESOLVE
+        if (len(domain) > 0):
+            data = self.do_web_lookup(domain)
+            address = self._parse_address (domain, data)
+
+        if (len(address) == 0 or address == domain):
+            address = CANT_RESOLVE
+
+        logging.debug("Resovled: %s, by %s" % (address, self.server))
+        self.cm.update(domain, address, address != CANT_RESOLVE)
+
+        return address
+
+class DNSWebLookupserverOcom(DNSWeb):
+    def __init__(self):
+        self.server = "www.lookupserver.com"
+        self.target = "/?forward_dns=%s&submit=Lookup"
+        self.add_offset = 769 # char offset
+        self.read_max = 1024
+        self.cm = DNSCacheManager()
+    
     # FIXME: Find a nother way to parse result
     def _parse_address(self, domain, data):
         if (len(data) == 0):
@@ -74,17 +107,34 @@ class DNSWeb(DNS):
 
         return address
 
-    def lookup(self, domain):
-        address = CANT_RESOLVE
-        if (len(domain) > 0):
-            data = self.do_web_lookup(domain)
-            address = self._parse_address (domain, data)
+class DNSWebBlokeOcom(DNSWeb):
+    def __init__(self):
+        self.server = "www.bloke.com"
+        self.target = "/cgi-bin/nslookup?%s"
+        self.add_offset = 15  # line number
+        self.read_max = 1024
+        self.cm = DNSCacheManager()
+    
+    def _parse_address(self, domain, data):
+        if (len(data) == 0):
+            return CANT_RESOLVE
 
-        if (len(address) == 0 or address == domain):
-            address = CANT_RESOLVE
+        f = StringIO(data)
+        lines = f.readlines()
 
-        logging.debug("Resovled: %s" % address)
-        self.cm.update(domain, address, address != CANT_RESOLVE)
+        if (len(lines) < self.add_offset or
+            len(lines[self.add_offset - 1]) == 0):
+            return CANT_RESOLVE
+
+        res = lines[self.add_offset - 1]
+        if (res[0] == '*'):
+            return CANT_RESOLVE
+
+        parts = res.split()
+        if (len(parts) < 2):
+            return CANT_RESOLVE
+
+        address = parts[1]
 
         return address
 

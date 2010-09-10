@@ -19,7 +19,9 @@ from google.appengine.ext.webapp import util
 
 from dns import DNS
 from dns import CANT_RESOLVE
-from dnsrelay import DNSWeb
+from dnsrelay import DNSWebLookupserverOcom
+from dnsrelay import DNSWebBlokeOcom
+from dnsrelay import WebRequestError
 from dnshosts import DNSHosts
 from dnshosts import DNSHostsManager
 
@@ -57,9 +59,25 @@ class MainHandler(webapp.RequestHandler):
                 return
 
         # Query from web
-        dns = DNSWeb()
-        ret = dns.lookup(domain)
-        self.response.out.write(ret)
+        dns = DNSWebLookupserverOcom()
+        try:
+            ret = dns.lookup(domain)
+            self.response.out.write(ret)
+            return
+        except WebRequestError as e:
+            logging.error(e)
+
+        dns = DNSWebBlokeOcom()
+        try:
+            ret = dns.lookup(domain)
+            self.response.out.write(ret)
+            return
+        except WebRequestError as e:
+            logging.error(e)
+
+        # Can't be resovled
+        self.response.out.write(CANT_RESOLVE)
+        return
 
 class DNSHostsManagerHandler(webapp.RequestHandler):
     def get(self):
