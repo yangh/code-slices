@@ -65,7 +65,8 @@ class MainHandler(webapp.RequestHandler):
             self.response.out.write(ret)
             return
         except WebRequestError:
-            logging.error("Web request error")
+            #logging.error("Web request error")
+            pass
 
         dns = DNSWebBlokeOcom()
         try:
@@ -73,7 +74,8 @@ class MainHandler(webapp.RequestHandler):
             self.response.out.write(ret)
             return
         except WebRequestError:
-            logging.error("Web request error")
+            #logging.error("Web request error")
+            pass
 
         # Can't be resovled
         self.response.out.write(CANT_RESOLVE)
