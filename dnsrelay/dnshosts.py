@@ -49,7 +49,7 @@ class DNSHosts(DNS):
         
         return address
 
-class DNSHostsManager():
+class DNSHostsManager(object):
     def get_all(self):
         hosts = []
         return hosts

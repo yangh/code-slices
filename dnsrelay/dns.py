@@ -24,7 +24,7 @@ class Host(db.Model):
     ip = db.StringProperty()
     domain = db.StringProperty()
 
-class DNS():
+class DNS(object):
     def __init__(self):
         pass
     

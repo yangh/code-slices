@@ -27,7 +27,7 @@ class HostCache(Host):
     create_date = db.DateTimeProperty(auto_now_add=True)
     update_date = db.DateTimeProperty(auto_now_add=True)
 
-class DNSCacheManager():
+class DNSCacheManager(object):
     def update(self, domain, ip, hit = True):
         updated = False
         hosts = db.GqlQuery("SELECT * FROM HostCache WHERE domain = :1 LIMIT 1", domain)
