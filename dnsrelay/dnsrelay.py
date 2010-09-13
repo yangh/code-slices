@@ -75,11 +75,10 @@ class DNSWeb(DNS):
 
 class DNSWebLookupserverOcom(DNSWeb):
     def __init__(self):
+        DNSWeb.__init__(self)
         self.server = "www.lookupserver.com"
         self.target = "/?forward_dns=%s&submit=Lookup"
         self.add_offset = 769 # char offset
-        self.read_max = 1024
-        self.cm = DNSCacheManager()
     
     # FIXME: Find a nother way to parse result
     def _parse_address(self, domain, data):
@@ -109,11 +108,10 @@ class DNSWebLookupserverOcom(DNSWeb):
 
 class DNSWebBlokeOcom(DNSWeb):
     def __init__(self):
+        DNSWeb.__init__(self)
         self.server = "www.bloke.com"
         self.target = "/cgi-bin/nslookup?%s"
         self.add_offset = 15  # line number
-        self.read_max = 1024
-        self.cm = DNSCacheManager()
     
     def _parse_address(self, domain, data):
         if (len(data) == 0):
