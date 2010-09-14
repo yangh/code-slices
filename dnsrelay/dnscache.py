@@ -16,6 +16,7 @@
 #
 
 from google.appengine.ext import db
+from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError
 from datetime import datetime
 from dns import Host
 
@@ -45,7 +46,6 @@ class DNSCacheManager(object):
                 db.put(host)
                 updated = True
             except CapabilityDisabledError:
-                logging.error("Appengine datastore is in maintain schedule, db request is ignored.")
                 return
 
         if updated:
@@ -62,7 +62,9 @@ class DNSCacheManager(object):
         try:
             host.put()
         except CapabilityDisabledError:
-            logging.error("Appengine datastore is in maintain schedule, db request is ignored.")
+            pass
+
+        return
 
     def get(self, domain):
         hosts = db.GqlQuery("SELECT * FROM HostCache WHERE domain = :1 LIMIT 1", domain)

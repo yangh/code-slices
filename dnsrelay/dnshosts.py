@@ -17,6 +17,7 @@
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
+from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError
 
 from dns import DNS
 from dns import Host
@@ -67,7 +68,6 @@ class DNSHostsManager(object):
                 db.put(host)
                 updated = True
             except CapabilityDisabledError:
-                logging.error("Appengine datastore is in maintain schedule, db request is ignored.")
                 return
 
         if (not updated):
@@ -75,7 +75,9 @@ class DNSHostsManager(object):
             try:
                 host.put()
             except CapabilityDisabledError:
-                logging.error("Appengine datastore is in maintain schedule, db request is ignored.")
+                pass
+
+        return
 
     def del_host(self, domain):
         if (len(domain) == 0):
