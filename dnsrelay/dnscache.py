@@ -41,20 +41,28 @@ class DNSCacheManager(object):
                 host.ip = ip
             host.update_date = datetime.utcnow()
 
-            db.put(host)
-            updated = True
-            #logging.info("%s, %s, hit = %d, failed = %d" % (host.domain, host.ip, host.hit, host.failed))
+            try:
+                db.put(host)
+                updated = True
+            except CapabilityDisabledError:
+                logging.error("Appengine datastore is in maintain schedule, db request is ignored.")
+                return
 
-        if (not updated):
-            h = 1
-            f = 0
-            if (not hit):
-                h = 0
-                f = 1
-                
-            host = HostCache(ip = ip, domain = domain, hit = h, failed = f)
+        if updated:
+            return
+
+        # Add new entity
+        h = 1
+        f = 0
+        if (not hit):
+            h = 0
+            f = 1
+
+        host = HostCache(ip = ip, domain = domain, hit = h, failed = f)
+        try:
             host.put()
-            #logging.info("%s, %s, hit = %d" % (domain, ip, hit))
+        except CapabilityDisabledError:
+            logging.error("Appengine datastore is in maintain schedule, db request is ignored.")
 
     def get(self, domain):
         hosts = db.GqlQuery("SELECT * FROM HostCache WHERE domain = :1 LIMIT 1", domain)

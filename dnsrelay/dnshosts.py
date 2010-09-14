@@ -21,6 +21,7 @@ from google.appengine.ext import db
 from dns import DNS
 from dns import Host
 from dns import CANT_RESOLVE
+from dnscache import DNSCacheManager
 from StringIO import StringIO
 
 import httplib 
@@ -62,12 +63,19 @@ class DNSHostsManager(object):
         hosts = db.GqlQuery("SELECT * FROM Host WHERE domain = :1 LIMIT 1", domain)
         for host in hosts:
             host.ip = ip
-            db.put(host)
-            updated = True
+            try:
+                db.put(host)
+                updated = True
+            except CapabilityDisabledError:
+                logging.error("Appengine datastore is in maintain schedule, db request is ignored.")
+                return
 
         if (not updated):
             host = Host(ip = ip, domain = domain)
-            host.put()
+            try:
+                host.put()
+            except CapabilityDisabledError:
+                logging.error("Appengine datastore is in maintain schedule, db request is ignored.")
 
     def del_host(self, domain):
         if (len(domain) == 0):
