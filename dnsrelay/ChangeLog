@@ -3,6 +3,7 @@
 	* Cache support
 	* Cron job to clean old cache
 	* Support bloke.com as fallback
+	* Config.py file to set options
 	* Code clean, performance improve
 	* Update app verison to 3
 
