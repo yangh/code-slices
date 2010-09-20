@@ -95,6 +95,9 @@ class MainHandler(webapp.RequestHandler):
             #logging.error("Web request error")
             pass
 
+        if g_config.cache_web_query:
+            g_cache.update(domain, ret, False)
+
         # Can't be resovled
         self.response.out.write(CANT_RESOLVE)
         return
