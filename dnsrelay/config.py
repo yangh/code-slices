@@ -23,4 +23,4 @@ class DNSConfig(object):
         # Cache
         self.cache_web_query = True
         self.use_cache = True          # depends on self.cache_web_query
-        self.cache_life = 60 * 60 * 2  # 2 hours
+        self.cache_life = 60 * 60 * 6  # 6 hours

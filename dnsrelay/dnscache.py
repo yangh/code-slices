@@ -79,7 +79,8 @@ class DNSCacheManager(object):
                           (domain, life.seconds, self.cache_life_limit))
             return host.ip
         else:
-            logging.debug("Cache out of time: %s " % domain)
+            logging.debug("Cache out of time: %s, life: %d " %
+                          (domain, self.cache_life_limit))
 
         return CANT_RESOLVE
 
