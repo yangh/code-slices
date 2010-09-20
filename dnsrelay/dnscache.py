@@ -42,7 +42,7 @@ class DNSCacheManager(object):
                 host.hit += 1
                 host.ip = ip
             else:
-                host.failed +=1
+                host.failed += 1
             host.update_date = datetime.utcnow()
             host.put()
             updated = True

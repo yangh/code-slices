@@ -77,7 +77,19 @@ class DNSWebLookupserverOcom(DNSWeb):
         self.target = "/?forward_dns=%s&submit=Lookup"
         self.add_offset = 769 # char offset
     
-    # FIXME: Find a nother way to parse result
+    """
+    Parse result in the html, start at offset 769
+      Resovled:
+      <tr><td align=right width="50%">IP address of g.cn:</td>
+      <td width="50%">203.208.37.104</td></tr></td></tr></table>
+
+      Can't be resolved:
+      <tr><td align=right width="50%">IP address of g.cnx:</td>
+      <td width="50%">g.cnx</td></tr></td></tr></table>
+
+    If the domain contains special char like '-*', output in the
+    first line remain as those chars filtered out.
+    """
     def _parse_address(self, domain, data):
         if (len(data) == 0):
             return CANT_RESOLVE
@@ -110,6 +122,15 @@ class DNSWebBlokeOcom(DNSWeb):
         self.target = "/cgi-bin/nslookup?%s"
         self.add_offset = 15  # line number
     
+    """
+    Output in line 15:
+
+    Resovled:
+      Address: 64.95.64.197
+
+    Can't be resolved:
+      ** server can't find www.blocke.comx: NXDOMAIN
+    """
     def _parse_address(self, domain, data):
         if (len(data) == 0):
             return CANT_RESOLVE
