@@ -18,6 +18,7 @@
 from google.appengine.ext import db
 from datetime import datetime
 from dns import Host
+from dns import CANT_RESOLVE
 
 import logging
 
@@ -28,6 +29,12 @@ class HostCache(Host):
     update_date = db.DateTimeProperty(auto_now_add=True)
 
 class DNSCacheManager(object):
+    def __init__(self):
+        self.cache_life_limit = 60 * 60 * 60 * 6 # default 6 hour
+
+    def set_cache_life(self, limit):
+        self.cache_life_limit = limit
+
     def update(self, domain, ip, hit = True):
         updated = False
         hosts = db.GqlQuery("SELECT * FROM HostCache WHERE domain = :1 LIMIT 1", domain)
@@ -41,7 +48,7 @@ class DNSCacheManager(object):
                 host.ip = ip
             host.update_date = datetime.utcnow()
 
-            db.put(host)
+            host.put()
             updated = True
             #logging.info("%s, %s, hit = %d, failed = %d" % (host.domain, host.ip, host.hit, host.failed))
 
@@ -61,7 +68,29 @@ class DNSCacheManager(object):
         for host in hosts:
             return host
 
-        return null
+        return None
+
+    def lookup(self, domain):
+        host = self.get(domain)
+        if host is None:
+            return CANT_RESOLVE
+        
+        if host.ip == CANT_RESOLVE:
+            return CANT_RESOLVE
+
+        life = datetime.utcnow() - host.update_date
+        if life.seconds < self.cache_life_limit:
+            logging.debug("Cache hit: %s, life/limit: %d/%d" %
+                          (domain, life.seconds, self.cache_life_limit))
+            return host.ip
+        else:
+            logging.debug("Cache out of time: %s " % domain)
+
+        # Mark as un avaliable
+        host.ip = CANT_RESOLVE
+        host.put()
+
+        return CANT_RESOLVE
 
 def main():
     print "Do some test here."

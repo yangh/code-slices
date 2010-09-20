@@ -19,7 +19,6 @@ from google.appengine.api import urlfetch
 
 from dns import DNS
 from dns import CANT_RESOLVE
-from dnscache import DNSCacheManager
 from StringIO import StringIO
 
 #import base64
@@ -37,8 +36,7 @@ class DNSWeb(DNS):
         self.server = "DNSWeb"
         self.target = ""
         self.read_max = 1024
-        self.cm = DNSCacheManager()
-    
+
     def do_web_lookup(self, domain):
         data = ""
 
@@ -69,7 +67,6 @@ class DNSWeb(DNS):
             address = CANT_RESOLVE
 
         logging.debug("Resovled: %s, by %s" % (address, self.server))
-        self.cm.update(domain, address, address != CANT_RESOLVE)
 
         return address
 
