@@ -17,6 +17,7 @@
 
 from google.appengine.ext import db
 from datetime import datetime
+from datetime import timedelta
 from dns import Host
 from dns import CANT_RESOLVE
 
@@ -84,6 +85,15 @@ class DNSCacheManager(object):
 
         return CANT_RESOLVE
 
+    def delete_old_cache(self, life_limit):
+        delta = timedelta(seconds=life_limit)
+        limit = datetime.utcnow() - delta
+        hosts = db.GqlQuery("SELECT * FROM HostCache WHERE update_date < :1 LIMIT 1", limit)
+        for host in hosts:
+            logging.debug("Delete: %s, last updated at: %s" %
+                          (host.domain, host.update_date))
+            host.delete()
+ 
 def main():
     print "Do some test here."
 

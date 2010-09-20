@@ -24,3 +24,6 @@ class DNSConfig(object):
         self.cache_web_query = True
         self.use_cache = True          # depends on self.cache_web_query
         self.cache_life = 60 * 60 * 6  # 6 hours
+
+        # Cache life before delete by cron job
+        self.cache_cron_life = 60 * 60 * 24 * 7 # 7 days
