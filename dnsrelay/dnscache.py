@@ -41,25 +41,21 @@ class DNSCacheManager(object):
         for host in hosts:
             if hit:
                 host.hit += 1
+                host.ip = ip
             else:
                 host.failed +=1
-
-            if (len(host.ip) < 2):
-                host.ip = ip
             host.update_date = datetime.utcnow()
-
             host.put()
             updated = True
             #logging.info("%s, %s, hit = %d, failed = %d" % (host.domain, host.ip, host.hit, host.failed))
 
         if (not updated):
-            h = 1
-            f = 0
-            if (not hit):
-                h = 0
-                f = 1
                 
-            host = HostCache(ip = ip, domain = domain, hit = h, failed = f)
+            host = HostCache(ip = ip, domain = domain, hit = 0, failed = 0)
+            if hit:
+                host.hit = 1
+            else
+                host.failed = 1
             host.put()
             #logging.info("%s, %s, hit = %d" % (domain, ip, hit))
 
@@ -85,10 +81,6 @@ class DNSCacheManager(object):
             return host.ip
         else:
             logging.debug("Cache out of time: %s " % domain)
-
-        # Mark as un avaliable
-        host.ip = CANT_RESOLVE
-        host.put()
 
         return CANT_RESOLVE
 
