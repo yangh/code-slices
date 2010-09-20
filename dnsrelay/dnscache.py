@@ -36,7 +36,6 @@ class DNSCacheManager(object):
         self.cache_life_limit = limit
 
     def update(self, domain, ip, hit = True):
-        updated = False
         hosts = db.GqlQuery("SELECT * FROM HostCache WHERE domain = :1 LIMIT 1", domain)
         for host in hosts:
             if hit:
@@ -48,16 +47,16 @@ class DNSCacheManager(object):
             host.put()
             updated = True
             #logging.info("%s, %s, hit = %d, failed = %d" % (host.domain, host.ip, host.hit, host.failed))
+            return
 
-        if (not updated):
-                
-            host = HostCache(ip = ip, domain = domain, hit = 0, failed = 0)
-            if hit:
-                host.hit = 1
-            else
-                host.failed = 1
-            host.put()
-            #logging.info("%s, %s, hit = %d" % (domain, ip, hit))
+        # Add new record
+        host = HostCache(ip = ip, domain = domain, hit = 0, failed = 0)
+        if hit:
+            host.hit = 1
+        else:
+            host.failed = 1
+        host.put()
+        #logging.info("%s, %s, hit = %d" % (domain, ip, hit))
 
     def get(self, domain):
         hosts = db.GqlQuery("SELECT * FROM HostCache WHERE domain = :1 LIMIT 1", domain)
