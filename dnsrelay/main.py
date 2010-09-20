@@ -83,7 +83,11 @@ class MainHandler(webapp.RequestHandler):
                 if g_config.cache_web_query:
                     g_cache.update(domain, ret, True)
                 return
+        except WebRequestError:
+            #logging.error("Web request error")
+            pass
 
+        try:
             dns = DNSWebBlokeOcom()
             ret = dns.lookup(domain)
             if (ret != CANT_RESOLVE):
