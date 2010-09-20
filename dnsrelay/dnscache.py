@@ -30,7 +30,7 @@ class HostCache(Host):
 
 class DNSCacheManager(object):
     def __init__(self):
-        self.cache_life_limit = 60 * 60 * 60 * 6 # default 6 hour
+        self.cache_life_limit = 60 * 60 * 6 # default 6 hours
 
     def set_cache_life(self, limit):
         self.cache_life_limit = limit
