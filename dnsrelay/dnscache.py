@@ -88,11 +88,14 @@ class DNSCacheManager(object):
     def delete_old_cache(self, life_limit):
         delta = timedelta(seconds=life_limit)
         limit = datetime.utcnow() - delta
-        hosts = db.GqlQuery("SELECT * FROM HostCache WHERE update_date < :1 LIMIT 1", limit)
-        for host in hosts:
-            logging.debug("Delete: %s, last updated at: %s" %
-                          (host.domain, host.update_date))
-            host.delete()
+        hosts = db.GqlQuery("SELECT * FROM HostCache WHERE update_date < :1", limit)
+        while True:
+            ret = hosts.fetch(100)
+            if len(ret) > 0:
+                logging.debug("Delete %d entities." % len(ret))
+                db.delete(ret)
+            else:
+                break
  
 def main():
     print "Do some test here."
