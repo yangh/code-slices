@@ -55,7 +55,7 @@ class MainHandler(webapp.RequestHandler):
         domain = DNS.unshake(domain)
 
         if not DNS.isValidHostname(domain):
-            logging.debug("Invalid domain name: %s" % domain)
+            logging.error("Invalid domain name: %s" % domain)
             self.response.out.write(CANT_RESOLVE)
             return
 
