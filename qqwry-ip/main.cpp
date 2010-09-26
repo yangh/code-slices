@@ -8,6 +8,11 @@
 
 using namespace std;
 
+static void usage(void)
+{
+	cout << "qqwry-ip [-d|--data-path <path>] [-v|--verbose] ip1 ip2..." << endl;
+}
+
 int main (int argc, char * argv[])
 {
 	bool verbose = false;
@@ -21,14 +26,18 @@ int main (int argc, char * argv[])
 		static struct option long_options[] = {
 			{"data-path", required_argument, 0, 'd'},
 			{"verbose", no_argument, 0, 'v'},
+			{"help", no_argument, 0, 'h'},
 			{0, 0, 0, 0}
 		};
 
-		c = getopt_long (argc, argv, "d",
+		c = getopt_long (argc, argv, "dvh",
 				long_options, &option_index);
 		if (c == -1)
 			break;
 		switch (c) {
+			case 'h':
+				usage();
+				return 0;
 			case 'd':
 				if (optarg)
 					dataPath = optarg;
@@ -59,7 +68,7 @@ int main (int argc, char * argv[])
 		string ip = *iter;
 		const string local = seeker.getIPLocation (ip);
 		if (verbose)
-			cout << ip << " ";
+			cout << ip << "\t";
 		cout << local << endl;
 	}
 

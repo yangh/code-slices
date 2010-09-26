@@ -69,7 +69,12 @@ const std::string EvaIPAddress::toString()
 {
 	char strIP[16];
 	memset(strIP, 0, 16);
-	sprintf(strIP, "%d.%d.%d.%d", (mIP&0xFF000000)>>24, (mIP&0x00FF0000)>>16, (mIP&0x0000FF00)>>8, (mIP&0x000000FF));
+	sprintf(strIP, "%d.%d.%d.%d",
+            (int)(mIP&0xFF000000)>>24,
+            (int)(mIP&0x00FF0000)>>16,
+            (int)(mIP&0x0000FF00)>>8,
+            (int)(mIP&0x000000FF)
+            );
 	return std::string(strIP);
 }
 
