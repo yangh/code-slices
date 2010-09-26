@@ -18,7 +18,9 @@
 from google.appengine.ext import db
 from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError
 from datetime import datetime
+from datetime import timedelta
 from dns import Host
+from dns import CANT_RESOLVE
 
 import logging
 
@@ -29,50 +31,73 @@ class HostCache(Host):
     update_date = db.DateTimeProperty(auto_now_add=True)
 
 class DNSCacheManager(object):
+    def __init__(self):
+        self.cache_life_limit = 60 * 60 * 6 # default 6 hours
+
+    def set_cache_life(self, limit):
+        self.cache_life_limit = limit
+
     def update(self, domain, ip, hit = True):
-        updated = False
         hosts = db.GqlQuery("SELECT * FROM HostCache WHERE domain = :1 LIMIT 1", domain)
         for host in hosts:
             if hit:
                 host.hit += 1
-            else:
-                host.failed +=1
-
-            if (len(host.ip) < 2):
                 host.ip = ip
+            else:
+                host.failed += 1
             host.update_date = datetime.utcnow()
-
-            try:
-                db.put(host)
-                updated = True
-            except CapabilityDisabledError:
-                return
-
-        if updated:
+            host.put()
+            updated = True
+            #logging.info("%s, %s, hit = %d, failed = %d" % (host.domain, host.ip, host.hit, host.failed))
             return
 
-        # Add new entity
-        h = 1
-        f = 0
-        if (not hit):
-            h = 0
-            f = 1
-
-        host = HostCache(ip = ip, domain = domain, hit = h, failed = f)
-        try:
-            host.put()
-        except CapabilityDisabledError:
-            pass
-
-        return
+        # Add new record
+        host = HostCache(ip = ip, domain = domain, hit = 0, failed = 0)
+        if hit:
+            host.hit = 1
+        else:
+            host.failed = 1
+        host.put()
+        #logging.info("%s, %s, hit = %d" % (domain, ip, hit))
 
     def get(self, domain):
         hosts = db.GqlQuery("SELECT * FROM HostCache WHERE domain = :1 LIMIT 1", domain)
         for host in hosts:
             return host
 
-        return null
+        return None
 
+    def lookup(self, domain):
+        host = self.get(domain)
+        if host is None:
+            return CANT_RESOLVE
+        
+        if host.ip == CANT_RESOLVE:
+            return CANT_RESOLVE
+
+        life = datetime.utcnow() - host.update_date
+        if life.seconds < self.cache_life_limit:
+            logging.debug("Cache hit: %s, life/limit: %d/%d" %
+                          (domain, life.seconds, self.cache_life_limit))
+            return host.ip
+        else:
+            logging.debug("Cache out of time: %s, life/limit: %d/%d" %
+                          (domain, life.seconds, self.cache_life_limit))
+
+        return CANT_RESOLVE
+
+    def delete_old_cache(self, life_limit):
+        delta = timedelta(seconds=life_limit)
+        limit = datetime.utcnow() - delta
+        hosts = db.GqlQuery("SELECT * FROM HostCache WHERE update_date < :1", limit)
+        while True:
+            ret = hosts.fetch(100)
+            if len(ret) > 0:
+                logging.debug("Delete %d entities." % len(ret))
+                db.delete(ret)
+            else:
+                break
+ 
 def main():
     print "Do some test here."
 

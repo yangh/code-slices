@@ -24,15 +24,25 @@ from dnsrelay import DNSWebBlokeOcom
 from dnsrelay import WebRequestError
 from dnshosts import DNSHosts
 from dnshosts import DNSHostsManager
+from dnscache import DNSCacheManager
+from config import DNSConfig
 
 #import base64
 import httplib 
 import logging
 
+# Global object
+g_config = DNSConfig()
+g_cache  = DNSCacheManager()
+
+# Load config
+g_cache.set_cache_life(g_config.cache_life)
+
 class MainHandler(webapp.RequestHandler):
     def get(self):
         domain = self.request.get("d")
-        use_hosts = self.request.get("uh", default_value="0")
+        use_hosts = self.request.get_range("uh", default=0)
+        use_cache = self.request.get_range("uc", default=0)
 
         # Compatible with dnsrelay 1.0, all query string as domain
         if (domain == ""):
@@ -45,37 +55,52 @@ class MainHandler(webapp.RequestHandler):
         domain = DNS.unshake(domain)
 
         if not DNS.isValidHostname(domain):
-            logging.debug("Invalid domain name: %s" % domain)
+            logging.error("Invalid domain name: %s" % domain)
             self.response.out.write(CANT_RESOLVE)
             return
 
         # Query from hosts datastore
-        if (use_hosts == "1"):
+        if g_config.use_hosts or use_hosts:
             dns = DNSHosts()
             ret = dns.lookup(domain)
             if (ret != CANT_RESOLVE):
                 self.response.out.write(ret)
-                #print "DNS from Hosts"
+                return
+
+        # Query from cache
+        if g_config.use_cache or use_cache:
+            ret = g_cache.lookup(domain)
+            if (ret != CANT_RESOLVE):
+                self.response.out.write(ret)
                 return
 
         # Query from web
-        dns = DNSWebLookupserverOcom()
         try:
+            dns = DNSWebLookupserverOcom()
             ret = dns.lookup(domain)
-            self.response.out.write(ret)
-            return
+            if (ret != CANT_RESOLVE):
+                self.response.out.write(ret)
+                if g_config.cache_web_query:
+                    g_cache.update(domain, ret, True)
+                return
         except WebRequestError:
             #logging.error("Web request error")
             pass
 
-        dns = DNSWebBlokeOcom()
         try:
+            dns = DNSWebBlokeOcom()
             ret = dns.lookup(domain)
-            self.response.out.write(ret)
-            return
+            if (ret != CANT_RESOLVE):
+                self.response.out.write(ret)
+                if g_config.cache_web_query:
+                    g_cache.update(domain, ret, True)
+                return
         except WebRequestError:
             #logging.error("Web request error")
             pass
+
+        if g_config.cache_web_query:
+            g_cache.update(domain, ret, False)
 
         # Can't be resovled
         self.response.out.write(CANT_RESOLVE)

@@ -5,4 +5,42 @@ Based on GAE/Python.
 
 More info: http://code.google.com/p/cmwrap/wiki/DNSServerHttp
 
+How to setup on GAE
+===================
 
+1. Create a new app with your google acount
+2. Modify app.yaml, replace the 'dn5r3l4y' with your app name
+3. Modify config.py to enable/disable some feature
+4. Upload with GAE SDK:	
+	cd google_appengine
+	./appcfg.py update path/my/dnsrelay-dir
+   Yor need input you google account name and password when upload.
+
+That's all.
+
+How to upgrade
+==============
+
+1. Copy your old config.py into new dnsrelay dir, or modify it by handle
+2. Modify app.yaml, replace the 'dn5r3l4y' with your app name
+3. Upload with GAE SDK as above
+
+WARNING: If new dnsrelay has changed the app version, you must login
+	 into the GAE control panel to set new version as default after
+	 upload it.
+
+Configuration
+=============
+
+Edit config.py to enable/diable some feature:
+
+        # Hosts
+        self.use_hosts = False
+
+        # Cache
+        self.cache_web_query = True
+        self.use_cache = True          # depends on self.cache_web_query
+        self.cache_life = 60 * 60 * 6  # 6 hours
+
+        # Cache life before delete by cron job
+        self.cache_cron_life = 60 * 60 * 24 * 7 # 7 days

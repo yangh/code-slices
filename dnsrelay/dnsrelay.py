@@ -19,7 +19,6 @@ from google.appengine.api import urlfetch
 
 from dns import DNS
 from dns import CANT_RESOLVE
-from dnscache import DNSCacheManager
 from StringIO import StringIO
 
 #import base64
@@ -37,8 +36,7 @@ class DNSWeb(DNS):
         self.server = "DNSWeb"
         self.target = ""
         self.read_max = 1024
-        self.cm = DNSCacheManager()
-    
+
     def do_web_lookup(self, domain):
         data = ""
 
@@ -69,7 +67,6 @@ class DNSWeb(DNS):
             address = CANT_RESOLVE
 
         logging.debug("Resovled: %s, by %s" % (address, self.server))
-        self.cm.update(domain, address, address != CANT_RESOLVE)
 
         return address
 
@@ -80,7 +77,19 @@ class DNSWebLookupserverOcom(DNSWeb):
         self.target = "/?forward_dns=%s&submit=Lookup"
         self.add_offset = 769 # char offset
     
-    # FIXME: Find a nother way to parse result
+    """
+    Parse result in the html, start at offset 769
+      Resovled:
+      <tr><td align=right width="50%">IP address of g.cn:</td>
+      <td width="50%">203.208.37.104</td></tr></td></tr></table>
+
+      Can't be resolved:
+      <tr><td align=right width="50%">IP address of g.cnx:</td>
+      <td width="50%">g.cnx</td></tr></td></tr></table>
+
+    If the domain contains special char like '-*', output in the
+    first line remain as those chars filtered out.
+    """
     def _parse_address(self, domain, data):
         if (len(data) == 0):
             return CANT_RESOLVE
@@ -113,6 +122,15 @@ class DNSWebBlokeOcom(DNSWeb):
         self.target = "/cgi-bin/nslookup?%s"
         self.add_offset = 15  # line number
     
+    """
+    Output in line 15:
+
+    Resovled:
+      Address: 64.95.64.197
+
+    Can't be resolved:
+      ** server can't find www.blocke.comx: NXDOMAIN
+    """
     def _parse_address(self, domain, data):
         if (len(data) == 0):
             return CANT_RESOLVE

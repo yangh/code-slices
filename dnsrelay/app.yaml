@@ -1,8 +1,14 @@
 application: dn5r3l4y
-version: 2
+version: 3
 runtime: python
 api_version: 1
 
 handlers:
-- url: .*
+- url: /
   script: main.py
+
+- url: /dhm/.*
+  script: main.py
+
+- url: /cron/.*
+  script: cron.py
