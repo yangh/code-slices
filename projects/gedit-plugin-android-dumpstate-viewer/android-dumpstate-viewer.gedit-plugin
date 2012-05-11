@@ -1,0 +1,9 @@
+[Gedit Plugin]
+Loader=python
+Module=dumpstate-viewer
+IAge=2
+Name=Android dumpstate viewer
+Description=A Python plugin help to view android dumpsate output
+Authors=Yang Hong <yangh.cn@gmail.com>
+Copyright=Copyright © 2012 Yang Hong <yangh.cn@gmail.com>
+Website=http://www.gedit.org

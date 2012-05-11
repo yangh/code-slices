@@ -103,6 +103,10 @@ int main(int argc, char *argv[])
         printf ("\n");
     }
 
+    printf ("%02X:%02X:%02X\n", 11, 8, 128);
+
+    printf ("%X\n", 11 & (1 << 1));
+
     return 0;
 }
 
