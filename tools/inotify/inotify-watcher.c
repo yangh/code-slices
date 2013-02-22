@@ -107,6 +107,10 @@ static void sig_handler(int signal)
 
 static const char *event_to_str(uint32_t event_mask)
 {
+	if (event_mask & IN_OPEN)
+		return "OPEN";
+	if (event_mask & IN_CLOSE)
+		return "CLOSE";
 	if (event_mask & IN_CREATE)
 		return "CREATE";
 	if (event_mask & IN_DELETE)
@@ -117,10 +121,6 @@ static const char *event_to_str(uint32_t event_mask)
 		return "MOVEFR";
 	if (event_mask & IN_MOVED_TO)
 		return "MOVETO";
-	if (event_mask & IN_OPEN)
-		return "OPEN";
-	if (event_mask & IN_CLOSE)
-		return "CLOSE";
 
 	return "OTHER";
 }
@@ -134,7 +134,7 @@ static void dump_inotify_event(struct inotify_event *event)
 	if (!event || event->len == 0)
 		return;
 
-	printf("%s %s %s/%s\n", event_to_str(event->mask),
+	printf("%-6s %s %s/%s\n", event_to_str(event->mask),
 	       event->mask & IN_ISDIR ? "D" : "F",
 	       target_dir, event->name);
 }
