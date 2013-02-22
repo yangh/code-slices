@@ -51,7 +51,9 @@ int main(int argc, char **argv)
 	signal(SIGTERM, sig_handler);
 	signal(SIGINT, sig_handler);
 
-	watcher(target_dir, IN_MODIFY | IN_CREATE | IN_DELETE);
+	watcher(target_dir, IN_MODIFY | IN_CREATE
+			| IN_DELETE | IN_MOVE
+			| IN_CLOSE | IN_OPEN);
 
 	exit(0);
 }
@@ -111,6 +113,14 @@ static const char *event_to_str(uint32_t event_mask)
 		return "DELETE";
 	if (event_mask & IN_MODIFY)
 		return "MODIFY";
+	if (event_mask & IN_MOVED_FROM)
+		return "MOVEFR";
+	if (event_mask & IN_MOVED_TO)
+		return "MOVETO";
+	if (event_mask & IN_OPEN)
+		return "OPEN";
+	if (event_mask & IN_CLOSE)
+		return "CLOSE";
 
 	return "OTHER";
 }
