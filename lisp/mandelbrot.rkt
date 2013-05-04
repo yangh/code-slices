@@ -41,28 +41,21 @@
 (define oldP1 P1)
 (define oldP2 P2)
 
-(define maxIteration 20)
+(define maxIteration 80)
 (define escapeRadius 2)
+(define logEscapeRadius (log escapeRadius))
 (define m-viewer 1)
 
 (define (color-idx C z i)
-  ;(printf "Origin z: ~a\n" z)
-  (set! z (+ (* z z) C))
-  ;(printf "New z0: ~a\n" z)
-  (set! z (+ (* z z) C))
-  ;(printf "New z1: ~a\n" z)
-  (set! i (+ i 2))
-  (define mu ( - i (/ (log (log (magnitude z))) (log escapeRadius))))
+  (define zN (lambda (Z) (+ (* Z Z) C)))
+  ;(set! z (zN z))
+  ;(set! i (+ i 1))
+  (define mu ( - i (/ (log (log (magnitude (zN z)))) logEscapeRadius)))
   (define idx (* (/ mu maxIteration) 768))
   ;(printf "idx: ~a\n" idx)
   (if (or (>= idx 768) (< idx 0))
       0
       (inexact->exact (round idx))))
-
-(define (iterations C z i)
-  (if (or (>= i maxIteration) (>= (magnitude z) escapeRadius))
-      (values i z)
-      (iterations C (+ (* z z) C) (add1 i))))
 
 (define (argb-fill data argb pos)
   (define cpos (* pos bpp))
@@ -70,6 +63,14 @@
         [i (in-range bpp)])
     (bytes-set! data (+ cpos i) c)
     ))
+
+(require racket/future)
+(define bloop 1)
+
+(define (iterations C z i)
+  (if (or (>= i maxIteration) (>= (magnitude z) escapeRadius))
+      (values i z)
+      (iterations C (+ (* z z) C) (add1 i))))
 
 (define (mandelbrot2 width height)
   (define m-bytes* (make-bytes (* width height bpp)))
@@ -82,16 +83,15 @@
 
     (for ([y height])
       (set! z (- z y-step))
-      (define pos (+ (* width y) x))
 
       (let-values ([(iter Z) (iterations z z 0)])
         ;(printf "~a, ~a, ~a, ~a\n" x y iter magn)
         (define idx (if (< iter maxIteration)
                         (color-idx z Z iter)
                         0))
-        (argb-fill m-bytes* (list-ref colors idx) pos))
-      ))
-  (printts)
+        (argb-fill m-bytes*
+                   (list-ref colors idx)
+                   (+ (* width y) x)))))
   m-bytes*)
 
 (define frame (new frame% [label "Mandelbrot"]
@@ -126,7 +126,7 @@
     ;(printf "~a, ~a, zoom ~a\n" x y in)
     (define diff (- P1 P2))
     (define p (+ P2 (make-rectangular (/ (* x (real-part diff)) (sub1 m-width))
-                                (/ (* y (imag-part diff)) (sub1 m-height)))))
+                                (/ (* (- m-height y) (imag-part diff)) (sub1 m-height)))))
     (if in
         (set! diff (/ diff 4))
         (set! diff (* diff 1)))
