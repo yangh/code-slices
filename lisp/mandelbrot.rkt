@@ -11,32 +11,56 @@
 
 (define (gen-color [alpha #f])
   (let ([cs '()]
-        [cmax 255]
+        [cmax 768]
         [cstep 1])
-    (for ([r (in-range 0 cmax cstep)]
-          [g (in-range 0 cmax cstep)]
-          [b (in-range 0 cmax cstep)])
-      (if alpha
-          (set! cs (cons (list 255 r 0 0) cs))
-          (set! cs (cons (list r 0 0) cs))))
+    (for ([i (in-range 0 cmax cstep)])
+      (let-values ([(r g b) (values 0 0 0)])
+        (cond 
+          [(>= i 512)
+           (set! r (- i 512))
+           (set! g (- 255 r))]
+          [(>= i 256)
+           (set! g (- i 256))
+           (set! b (- 255 g))]
+          [else
+           (set! b i)])
+        (if alpha
+            (set! cs (cons (list 255 r g b) cs))
+            (set! cs (cons (list r g b) cs)))))
     ;cs
     (reverse cs) 
     ;(append (reverse cs) cs)
     ))
 
 
-(define m-width 60)
-(define m-height 50)
+(define m-width 300)
+(define m-height 300)
 (define bpp 4)
 (define colors (gen-color #t))
+(define P1 (make-rectangular 1 1.5))
+(define P2 (make-rectangular -2 -1.5))
+(define oldP1 P1)
+(define oldP2 P2)
 
+(define maxIteration 20)
+(define escapeRadius 2)
+(define m-viewer 1)
 
-(define (iterations a z i)
-  (define z′ (+ (* z z) a))
-  (define magn (magnitude z′))
-  (if (or (= i 255) (> magn 2))
-      (values i (- (+ i 1) (/ (log (log magn)) (log 2))))
-      (iterations a z′ (add1 i))))
+(define (color-idx a z i)
+  (set! z (+ (* z z) a))
+  (set! z (+ (* z z) a))
+  (set! i (+ i 2))
+  (define mu ( - i (/ (log (log (magnitude z))) (log escapeRadius))))
+  (define idx (* (/ mu maxIteration) 768))
+
+  (if (or (>= idx 768) (< idx 0))
+      0
+      (inexact->exact (round idx))))
+
+(define (iterations C z i)
+  (if (or (= i maxIteration) (>= (magnitude z) escapeRadius))
+      (values i z)
+      (iterations C (+ (* z z) C) (add1 i))))
 
 (define (mod n m)
     (if (< n m)
@@ -47,8 +71,8 @@
   (define a 255)
   (if (= i 255)
       (list a 255 255 255)
-      (list a (mod (* magn 254) 254))
-      ;(list-ref colors (mod magn 254))
+      
+      (list-ref colors magn)
       ;(list a 0 0 0)
       ;(list a (* 5 (modulo i 15)) (* 32 (modulo i 7)) (* 8 (modulo i 31)))
       )
@@ -71,23 +95,37 @@
 (define (mandelbrot2 width height)
   ;(define target (make-object bitmap% width height #f #t))
   (define m-bytes* (make-bytes (* width height bpp)))
+  (define x-step (/ (real-part (- P1 P2)) (sub1 width)))
+  (define y-step (make-rectangular
+                  0
+                  (/ (imag-part (- P1 P2)) (sub1 height))))
 
-  (for* ([y height] [x width])
-    (define real-x (- (* 3.0 (/ x width)) 2.25))
-    (define real-y (- (* 2.5 (/ y height)) 1.25))
-    (define pos (+ (* width y) x))
+  (define z P2)
+  
+  (for ([x width])
+    (set! z (make-rectangular (+ (real-part z) x-step) (imag-part P1)))
 
-    (let-values ([(iter magn) (iterations (make-rectangular real-x real-y) 0 0)])
-      ;(oprint o x y iter magn)
-      ;(printf "~a, ~a, ~a, ~a\n" x y iter magn)
-      (argb-fill m-bytes* (iter->argb* iter magn) pos)))
+    (for ([y height])
+      (set! z (- z y-step))
+      ;(define C z)
+      (define pos (+ (* width y) x))
+
+      (let-values ([(iter Z) (iterations z z 0)])
+        ;(oprint o x y iter magn)
+        ;(printf "~a, ~a, ~a, ~a\n" x y iter magn)
+        (define idx (if (< iter maxIteration)
+                        (color-idx z Z iter)
+                        0))
+        (argb-fill m-bytes* (list-ref colors idx) pos))
+      ;(set! z C)
+      ))
   (printts)
-
   m-bytes*)
 
 (define frame (new frame% [label "Mandelbrot"]
                    [width m-width]
                    [height m-height]
+                   [border 0]
                    [alignment '(center center)]))
 
 (define (create-m-bitmap w h)
@@ -98,7 +136,46 @@
 (define (draw-mandelbrot dc)
   (send dc draw-bitmap m-bitmap 0 0))
 
-(define viewer (new canvas% [parent frame]
+(define (update-viewer viewer)
+  (printts)
+  (displayln "Start render data...")
+  (define new-bytes* (mandelbrot2 m-width m-height))
+  (printts)  
+  (displayln "Start render bitmap...")
+  (send m-bitmap set-argb-pixels 0 0 m-width m-height new-bytes*)
+  (printts)
+  
+  (send viewer refresh-now)
+  )
+
+(define (zoom in e)
+  (let ([x (send e get-x)]
+        [y (send e get-y)])
+    ;(printf "~a, ~a, zoom ~a\n" x y in)
+    (define p (+ P2 (make-rectangular (/ (* x (real-part (- P1 P2))) (sub1 m-width))
+                                (/ (* y (imag-part (- P1 P2))) (sub1 m-height)))))
+    (define diff (- P1 P2))
+    (if in
+        (set! diff (/ diff 4))
+        (set! diff (* diff 1)))
+    (set! P1 (+ p diff))
+    (set! P2 (- p diff))
+    (update-viewer m-viewer)
+    ))
+
+(define canvas-box%
+  (class canvas%
+    (define/override (on-event e)
+      (let ([e-type (send e get-event-type)])
+        (cond 
+          [(equal? e-type 'left-up) (zoom #t e)]
+          [(equal? e-type 'right-up) (zoom #f e)]
+          )
+        ;(displayln e-type)
+        ))
+    (super-new)))
+
+(set! m-viewer (new canvas-box% [parent frame]
                     [min-width m-width]
                     [min-height m-height]
                     [paint-callback
@@ -116,15 +193,7 @@
   (set! m-width width)
   (set! m-height height)
   
-  (printts)
-  (displayln "Start render data...")
-  (define new-bytes* (mandelbrot2 width height))
-  (printts)  
-  (displayln "Start render bitmap...")
-  (send m-bitmap set-argb-pixels 0 0 width height new-bytes*)
-  (printts)
-  
-  (send viewer refresh-now)
+  (update-viewer m-viewer)
   )
 
 (update-mb m-width m-height #t)
