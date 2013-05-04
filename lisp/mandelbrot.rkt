@@ -32,8 +32,8 @@
     ))
 
 
-(define m-width 300)
-(define m-height 300)
+(define m-width 600)
+(define m-height 600)
 (define bpp 4)
 (define colors (gen-color #t))
 (define P1 (make-rectangular 1 1.5))
@@ -41,7 +41,7 @@
 (define oldP1 P1)
 (define oldP2 P2)
 
-(define maxIteration 80)
+(define maxIteration 25)
 (define escapeRadius 2)
 (define logEscapeRadius (log escapeRadius))
 (define m-viewer 1)
@@ -128,10 +128,12 @@
     (define p (+ P2 (make-rectangular (/ (* x (real-part diff)) (sub1 m-width))
                                 (/ (* (- m-height y) (imag-part diff)) (sub1 m-height)))))
     (if in
-        (set! diff (/ diff 4))
+        (set! diff (/ diff 8))
         (set! diff (* diff 1)))
     (set! P1 (+ p diff))
     (set! P2 (- p diff))
+    (when (< maxIteration 255)
+      (set! maxIteration (+ 20 maxIteration)))
     (update-viewer m-viewer)
     ))
 
