@@ -29,7 +29,6 @@
             (set! cs (cons (list r g b) cs)))))
     ;cs
     (reverse cs) 
-    ;(append (reverse cs) cs)
     ))
 
 
@@ -46,60 +45,36 @@
 (define escapeRadius 2)
 (define m-viewer 1)
 
-(define (color-idx a z i)
-  (set! z (+ (* z z) a))
-  (set! z (+ (* z z) a))
+(define (color-idx C z i)
+  ;(printf "Origin z: ~a\n" z)
+  (set! z (+ (* z z) C))
+  ;(printf "New z0: ~a\n" z)
+  (set! z (+ (* z z) C))
+  ;(printf "New z1: ~a\n" z)
   (set! i (+ i 2))
   (define mu ( - i (/ (log (log (magnitude z))) (log escapeRadius))))
   (define idx (* (/ mu maxIteration) 768))
-
+  ;(printf "idx: ~a\n" idx)
   (if (or (>= idx 768) (< idx 0))
       0
       (inexact->exact (round idx))))
 
 (define (iterations C z i)
-  (if (or (= i maxIteration) (>= (magnitude z) escapeRadius))
+  (if (or (>= i maxIteration) (>= (magnitude z) escapeRadius))
       (values i z)
       (iterations C (+ (* z z) C) (add1 i))))
-
-(define (mod n m)
-    (if (< n m)
-        (inexact->exact (round n))
-        (mod (- n m) m)))
-
-(define (iter->argb* i magn)
-  (define a 255)
-  (if (= i 255)
-      (list a 255 255 255)
-      
-      (list-ref colors magn)
-      ;(list a 0 0 0)
-      ;(list a (* 5 (modulo i 15)) (* 32 (modulo i 7)) (* 8 (modulo i 31)))
-      )
-  )
 
 (define (argb-fill data argb pos)
   (define cpos (* pos bpp))
   (for ([c argb]
         [i (in-range bpp)])
     (bytes-set! data (+ cpos i) c)
-    ;(when (< cpos 200) (displayln cpos))
     ))
 
-(define o (open-output-string))
-(define (oprint o . var)
-  (lambda (o vars)
-    (print vars o)
-    (print "\n" o)))
-
 (define (mandelbrot2 width height)
-  ;(define target (make-object bitmap% width height #f #t))
   (define m-bytes* (make-bytes (* width height bpp)))
   (define x-step (/ (real-part (- P1 P2)) (sub1 width)))
-  (define y-step (make-rectangular
-                  0
-                  (/ (imag-part (- P1 P2)) (sub1 height))))
-
+  (define y-step (make-rectangular 0 (/ (imag-part (- P1 P2)) (sub1 height))))
   (define z P2)
   
   (for ([x width])
@@ -107,17 +82,14 @@
 
     (for ([y height])
       (set! z (- z y-step))
-      ;(define C z)
       (define pos (+ (* width y) x))
 
       (let-values ([(iter Z) (iterations z z 0)])
-        ;(oprint o x y iter magn)
         ;(printf "~a, ~a, ~a, ~a\n" x y iter magn)
         (define idx (if (< iter maxIteration)
                         (color-idx z Z iter)
                         0))
         (argb-fill m-bytes* (list-ref colors idx) pos))
-      ;(set! z C)
       ))
   (printts)
   m-bytes*)
@@ -152,9 +124,9 @@
   (let ([x (send e get-x)]
         [y (send e get-y)])
     ;(printf "~a, ~a, zoom ~a\n" x y in)
-    (define p (+ P2 (make-rectangular (/ (* x (real-part (- P1 P2))) (sub1 m-width))
-                                (/ (* y (imag-part (- P1 P2))) (sub1 m-height)))))
     (define diff (- P1 P2))
+    (define p (+ P2 (make-rectangular (/ (* x (real-part diff)) (sub1 m-width))
+                                (/ (* y (imag-part diff)) (sub1 m-height)))))
     (if in
         (set! diff (/ diff 4))
         (set! diff (* diff 1)))
