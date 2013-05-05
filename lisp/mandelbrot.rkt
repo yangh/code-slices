@@ -32,16 +32,16 @@
   (reverse cs)
   )
 
-
-(define m-width 600)
-(define m-height 600)
+; Keep ratio with (- Q1 Q2)
+(define m-width 325)
+(define m-height 300)
 (define bpp 4)
 (define colors (gen-color #t))
 
-(define P1 (make-rectangular 1 1.5))
-(define P2 (make-rectangular -2 -1.5))
-(define oldP1 P1)
-(define oldP2 P2)
+(define std-Q1 (make-rectangular -2.25 1.5))
+(define std-Q2 (make-rectangular 1 -1.5))
+(define Q1 std-Q1)
+(define Q2 std-Q2)
 
 (define minimumIteration 25)
 (define maximumIteration 500)
@@ -50,8 +50,8 @@
 ; Current maximum iteration
 (define maxIteration minimumIteration)
 
-
-(define escapeRadius 2)
+; Set as max part of Q1, Q2
+(define escapeRadius 2.25)
 (define logEscapeRadius (log escapeRadius))
 (define m-viewer 1)
 
@@ -75,29 +75,29 @@
 
 (require racket/future)
 
-(define (iterations C z i)
+(define (iterations c z i)
   (if (or (>= i maxIteration) (>= (magnitude z) escapeRadius))
       (values i z)
-      (iterations C (+ (* z z) C) (add1 i))))
+      (iterations c (+ (* z z) c) (add1 i))))
 
 (define (mandelbrot2 width height)
   (define m-bytes* (make-bytes (* width height bpp)))
-  (define x-step (/ (real-part (- P1 P2)) (sub1 width)))
-  (define y-step (make-rectangular 0 (/ (imag-part (- P1 P2)) (sub1 height))))
-  (define z P2)
+  (define x-step (make-rectangular (/ (abs (real-part (- Q1 Q2))) (sub1 width)) 0))
+  (define y-step (make-rectangular 0 (/ (abs (imag-part (- Q1 Q2))) (sub1 height))))
   
-  (for ([x width])
-    (set! z (make-rectangular (+ (real-part z) x-step) (imag-part P1)))
-    (for ([y height])
-      (set! z (- z y-step))
-      (let-values ([(iter Z) (iterations z z 0)])
-        ;(printf "~a, ~a, ~a, ~a\n" x y iter magn)
-        (define idx (if (< iter maxIteration)
-                        (color-idx z Z iter)
-                        0))
-        (argb-fill m-bytes*
-                   (list-ref colors idx)
-                   (+ (* width y) x)))))
+  ;(printf "step (~a, ~a)\n" x-step y-step)
+  (for ([ y height])
+    (define y-inc (- Q1 (* y-step y)))
+    (for ([x width])
+      (define z (+ y-inc (* x-step x)))
+      (define-values (iter Z) (iterations z z 0))
+
+      (define idx 0)
+      (define pos (+ (* width y) x))
+      (when (< iter maxIteration)
+        (set! idx (color-idx z Z iter)))
+      (argb-fill m-bytes* (list-ref colors idx) pos))
+      )
   m-bytes*)
 
 (define frame (new frame% [label "Mandelbrot"]
@@ -129,15 +129,17 @@
   (define x (send e get-x))
   (define y (send e get-y))
   ;(printf "~a, ~a, zoom ~a\n" x y in)
-  
-  (define diff (- P1 P2))
-  (define p (+ P2 (make-rectangular (/ (* x (real-part diff)) (sub1 m-width))
-                                    (/ (* (- m-height y) (imag-part diff)) (sub1 m-height)))))
+  (define diff (- Q1 Q2))
+  (define e-pos-offset (make-rectangular
+                        (* (real-part diff) (/ x (sub1 m-width)))
+                        (* (imag-part diff) (/ y (sub1 m-height)))))
+  (define p (- Q1 e-pos-offset))
+  ;(printf "offset: ~a, p-e: ~a\n" e-pos-offset p)
   (if in
-      (set! diff (/ diff 8.0))
-      (set! diff (* diff 2.0)))
-  (set! P1 (+ p diff))
-  (set! P2 (- p diff))
+      (set! diff (/ diff 4.0))
+      (set! diff (* diff 1.0)))
+  (set! Q1 (+ p diff))
+  (set! Q2 (- p diff))
   
   ; Adjust max iteration to get detailed image on zoom
   (if in
@@ -147,8 +149,7 @@
         (set! maxIteration (- maxIteration stepIteration))))
   (printf "New iteration limit: ~a\n" maxIteration)
   
-  (update-viewer m-viewer)
-  )
+  (update-viewer m-viewer))
 
 (define canvas-box%
   (class canvas%
