@@ -2,12 +2,13 @@
 
 (require racket/date)
 
-(define start-ts (current-seconds))
+(define start-ts (current-milliseconds))
 
 (define (printts [reset #f])
-  (define ts (current-seconds))
+  (define ts (current-milliseconds))
+  (define-values (q r) (quotient/remainder (- ts start-ts) 1000))
   (when (not reset)
-    (printf "Time elapsed: ~a\n" (- ts start-ts)))
+    (printf "Time elapsed: ~a.~as\n" q r))
   (set! start-ts ts))
 
 (define (gen-color [alpha #f])
