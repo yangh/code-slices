@@ -56,11 +56,12 @@
 (define logEscapeRadius (log escapeRadius))
 (define m-viewer 1)
 
-(define (color-idx C z i)
-  (define zN (lambda (Z) (+ (* Z Z) C)))
+(define zN (lambda (z c) (+ (* z z) c)))
+
+(define (color-idx c z i)
   ;(set! z (zN z))
   ;(set! i (+ i 1))
-  (define mu ( - i (/ (log (log (magnitude (zN z)))) logEscapeRadius)))
+  (define mu ( - i (/ (log (log (magnitude (zN z c)))) logEscapeRadius)))
   (define idx (* (/ mu maxIteration) 768))
   ;(printf "idx: ~a\n" idx)
   (if (or (>= idx 768) (< idx 0))
@@ -69,9 +70,9 @@
 
 (define (argb-fill data argb pos)
   (define cpos (* pos bpp))
-  (for ([c argb]
+  (for ([color argb]
         [i (in-range bpp)])
-    (bytes-set! data (+ cpos i) c)
+    (bytes-set! data (+ cpos i) color)
     ))
 
 (require racket/future)
@@ -86,19 +87,27 @@
   (define x-step (make-rectangular (/ (abs (real-part (- Q1 Q2))) (sub1 width)) 0))
   (define y-step (make-rectangular 0 (/ (abs (imag-part (- Q1 Q2))) (sub1 height))))
   
-  ;(printf "step (~a, ~a)\n" x-step y-step)
-  (for ([ y height])
-    (define y-inc (- Q1 (* y-step y)))
-    (for ([x width])
-      (define z (+ y-inc (* x-step x)))
-      (define-values (iter Z) (iterations z z 0))
-
+  (define cacul-n-fill
+    (lambda (z Z iter pos)
       (define idx 0)
-      (define pos (+ (* width y) x))
       (when (< iter maxIteration)
         (set! idx (color-idx z Z iter)))
-      (argb-fill m-bytes* (list-ref colors idx) pos))
-      )
+      (argb-fill m-bytes* (list-ref colors idx) pos)))
+
+  ;(printf "step (~a, ~a)\n" x-step y-step)
+  (define (bloop xs xe ys ye)
+    (for ([ y (in-range ys ye)])
+      (define y-inc (- Q1 (* y-step y)))
+      (define line-pos (* width y))
+
+      (for ([x (in-range xs xe)])
+        (define z (+ y-inc (* x-step x)))
+        (define-values (iter Z) (iterations z z 0))
+        (cacul-n-fill z Z iter (+ line-pos x))
+      )))
+  ;two thread
+  (let ([f (future (lambda () (bloop 0 width 0 (/ height 2))))])
+    (list (bloop 0 width (/ height 2) height) (touch f)))
   m-bytes*)
 
 (define frame (new frame% [label "Mandelbrot"]
