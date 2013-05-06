@@ -15,9 +15,9 @@
   (define cs '())
   (define cmax 768)
   (define cstep 1)
-  (for ([i (in-range 0 cmax cstep)])
+  (for/list ([i (in-range 0 cmax cstep)])
     (let-values ([(r g b) (values 0 0 0)])
-      (cond 
+      (cond
         [(>= i 512)
          (set! r (- i 512))
          (set! g (- 255 r))]
@@ -27,11 +27,8 @@
         [else
          (set! b i)])
       (if alpha
-          (set! cs (cons (list 255 r g b) cs))
-          (set! cs (cons (list r g b) cs)))))
-  ;cs
-  (reverse cs)
-  )
+          (list->bytes (list 255 r g b))
+          (list->bytes (list r g b))))))
 
 ; Keep ratio with (- Q1 Q2)
 (define m-width 325)
@@ -56,24 +53,16 @@
 (define logEscapeRadius (log escapeRadius))
 (define m-viewer 1)
 
-(define zN (lambda (z c) (+ (* z z) c)))
-
 (define (color-idx c z i)
-  ;(set! z (zN z))
-  ;(set! i (+ i 1))
-  (define mu ( - i (/ (log (log (magnitude (zN z c)))) logEscapeRadius)))
+  (define mu ( - i (/ (log (log (magnitude (+ (* z z) c)))) logEscapeRadius)))
   (define idx (* (/ mu maxIteration) 768))
-  ;(printf "idx: ~a\n" idx)
   (if (or (>= idx 768) (< idx 0))
       0
       (inexact->exact (round idx))))
 
 (define (argb-fill data argb pos)
   (define cpos (* pos bpp))
-  (for ([color argb]
-        [i (in-range bpp)])
-    (bytes-set! data (+ cpos i) color)
-    ))
+  (bytes-copy! data cpos argb))
 
 (require racket/future)
 
@@ -82,28 +71,31 @@
       (values i z)
       (iterations c (+ (* z z) c) (add1 i))))
 
+(define debug-bytes 0)
 (define (mandelbrot2 width height)
   (define m-bytes* (make-bytes (* width height bpp)))
   (define x-step (make-rectangular (/ (abs (real-part (- Q1 Q2))) (sub1 width)) 0))
   (define y-step (make-rectangular 0 (/ (abs (imag-part (- Q1 Q2))) (sub1 height))))
-  
-  (define cacul-n-fill
-    (lambda (z Z iter pos)
-      (define idx 0)
-      (when (< iter maxIteration)
-        (set! idx (color-idx z Z iter)))
-      (argb-fill m-bytes* (list-ref colors idx) pos)))
+
 
   ;(printf "step (~a, ~a)\n" x-step y-step)
   (define (bloop xs xe ys ye)
     (for ([ y (in-range ys ye)])
       (define y-inc (- Q1 (* y-step y)))
       (define line-pos (* width y))
+      (define byte-line-pos (* line-pos bpp))
 
       (for ([x (in-range xs xe)])
         (define z (+ y-inc (* x-step x)))
         (define-values (iter Z) (iterations z z 0))
-        (cacul-n-fill z Z iter (+ line-pos x))
+
+        (define idx 0)
+        (when (< iter maxIteration)
+          (set! idx (color-idx z Z iter)))
+        (define cpos (+ byte-line-pos (* bpp x)))
+        (bytes-copy! m-bytes* cpos (list-ref colors idx))
+        ;(argb-fill m-bytes* (list-ref colors idx) (+ line-pos x))
+        ;(cacul-n-fill z Z iter (+ line-pos x))
       )))
   ;two thread
   (let ([f (future (lambda () (bloop 0 width 0 (/ height 2))))])
@@ -126,9 +118,9 @@
 
 (define (update-viewer viewer)
   (printts #t)
-  (displayln "Start render data...")
+  (printf "Start render data...~ax~a\n" m-width m-height)
   (define new-bytes* (mandelbrot2 m-width m-height))
-  (printts)  
+  (printts)
   (displayln "Start render bitmap...")
   (send m-bitmap set-argb-pixels 0 0 m-width m-height new-bytes*)
   ;(printts)
@@ -146,11 +138,11 @@
   (define p (- Q1 e-pos-offset))
   ;(printf "offset: ~a, p-e: ~a\n" e-pos-offset p)
   (if in
-      (set! diff (/ diff 4.0))
-      (set! diff (* diff 1.0)))
+      (set! diff (/ diff 8.0))
+      (set! diff (* diff 2.0)))
   (set! Q1 (+ p diff))
   (set! Q2 (- p diff))
-  
+
   ; Adjust max iteration to get detailed image on zoom
   (if in
       (when (< maxIteration maximumIteration)
@@ -158,18 +150,26 @@
       (when (> maxIteration minimumIteration)
         (set! maxIteration (- maxIteration stepIteration))))
   (printf "New iteration limit: ~a\n" maxIteration)
-  
+
   (update-viewer m-viewer))
 
 (define canvas-box%
   (class canvas%
     (define/override (on-event e)
       (define e-type (send e get-event-type))
-      (cond 
+      (cond
         [(equal? e-type 'left-up) (zoom #t e)]
         [(equal? e-type 'right-up) (zoom #f e)])
       ; need call super on-event?
       ;(displayln e-type)
+      )
+    (define/override (on-size w h)
+      ;(super on-size w h)
+      (when (not (and (equal? w m-width) (equal? h m-height)))
+        ;(set! m-width w)
+        ;(set! m-height h)
+        (printf "New size ~a, ~a\n" w h)
+        )
       )
     (super-new)))
 
@@ -182,19 +182,15 @@
                     ))
 
 (define (update-mb width height [force #f])
-  (send frame resize width height)
-  
-  (if (and (not force)
-           (equal? m-width width)
-           (equal? m-height height))
-      (displayln "No change")
-      (set! m-bitmap (create-m-bitmap width height))
-      )
-  (set! m-width width)
-  (set! m-height height)
-  
-  (update-viewer m-viewer)
-  )
+  (when (or force
+            (not (equal? m-width width))
+            (not (equal? m-height height)))
+    (set! m-width width)
+    (set! m-height height)
+    (set! m-bitmap (create-m-bitmap width height))
+    (update-viewer m-viewer)
+    (send frame resize width height)
+  ))
 
 (update-mb m-width m-height #t)
 (send frame show #t)
