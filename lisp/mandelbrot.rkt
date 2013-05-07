@@ -85,23 +85,8 @@
 (define debug-bytes 0)
 (define (mandelbrot2 width height)
   (define m-bytes* (make-bytes (* width height bpp)))
-  (define x-step (make-rectangular (/ (abs (real-part (- Q1 Q2))) (sub1 width)) 0))
-  (define y-step (make-rectangular 0 (/ (abs (imag-part (- Q1 Q2))) (sub1 height))))
 
-  (define pl1 (dynamic-place "mandelbrot-worker.rkt" 'place-main))
-  (define pl2 (dynamic-place "mandelbrot-worker.rkt" 'place-main))
-    (define args1 (list width height
-                       0 width 0 (/ height 2)
-                       Q1 Q2
-                       escapeRadius maxIteration #t))
-    (define args2 (list width height
-                       0 width (/ height 2) height
-                       Q1 Q2
-                       escapeRadius maxIteration #t))
-
-  ;(printf "step (~a, ~a)\n" x-step y-step)
   (define (bloop xs xe ys ye pl buffered)
-
     (define all-res (place-channel-get pl))
     (printts #:msg "Got idx data")
     (define mark (if (> ys 0) "=" "-"))
@@ -121,14 +106,22 @@
       )
     (printts #:msg "Finish render bytes")
     (place-wait pl)
-
     )
-  ;two thread
-    (place-channel-put pl1 args1)
-    (place-channel-put pl2 args2)
-  (bloop 0 width 0 (/ height 2) pl1 #t)
-  (bloop 0 width (/ height 2) height pl2 #t)
-
+  ; many places
+  (define count 4)
+  (define pls (for/list ([i count])
+                (define pl (dynamic-place "mandelbrot-worker.rkt" 'place-main))
+                (define y-step (/ height count))
+                (define args (list width height
+                                   0 width (* i y-step) (* (add1 i) y-step)
+                                   Q1 Q2
+                                   escapeRadius maxIteration #t))
+                (place-channel-put pl args)
+                pl))
+  (for ([i count]
+        [pl pls])
+    (define y-step (/ height count))
+    (bloop 0 width (* i y-step) (* (add1 i) y-step) pl #t))
   m-bytes*)
 
 (define frame (new frame% [label "Mandelbrot"]

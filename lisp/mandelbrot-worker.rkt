@@ -30,7 +30,8 @@
           idx))
 
     ;(printf "step (~a, ~a)\n" x-step y-step)
-    (define mark (if (> ys 0) "." "*"))
+    ;(define mark (if (> ys 0) "." "*"))
+    (define mark (make-bytes 1 (+ 97 (/ ys (- ye ys)))))
 
     (define lls
       (for/list ([ y (in-range ys ye)])
