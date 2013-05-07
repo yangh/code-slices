@@ -91,23 +91,38 @@
 
   ;(printf "step (~a, ~a)\n" x-step y-step)
   (define (bloop xs xe ys ye)
+    (define pl (dynamic-place "mandelbrot-worker.rkt" 'place-main))
+    (define args (list width
+                       height
+                       xs
+                       xe
+                       ys
+                       ye
+                       Q1
+                       Q2
+                       escapeRadius
+                       maxIteration))
+    (place-channel-put pl args)
+
     (for ([ y (in-range ys ye)])
+      (define line-res (place-channel-get pl))
       (define y-inc (- Q1 (* y-step y)))
       (define line-pos (* width y))
       (define byte-line-pos (* line-pos bpp))
 
-      (for ([x (in-range xs xe)])
-        (define z (+ y-inc (* x-step x)))
-        (define-values (iter Z) (iterations z z 0))
-
+      (for ([x (in-range xs xe)]
+            [res line-res])
+        (define iter (list-ref res 0))
+        (define Z (list-ref res 1))
+        (define z (list-ref res 2))
         (define idx 0)
         (when (< iter maxIteration)
           (set! idx (color-idx z Z iter)))
         (define cpos (+ byte-line-pos (* bpp x)))
         (bytes-copy! m-bytes* cpos (list-ref colors idx))
-        ;(argb-fill m-bytes* (list-ref colors idx) (+ line-pos x))
-        ;(cacul-n-fill z Z iter (+ line-pos x))
-      )))
+      ))
+    (place-wait pl)
+    )
   ;two thread
   (let ([f (future (lambda () (bloop 0 width 0 (/ height 2))))])
     (list (bloop 0 width (/ height 2) height) (touch f)))
