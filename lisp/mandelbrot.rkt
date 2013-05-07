@@ -15,11 +15,11 @@
 
 (define start-ts (current-milliseconds))
 
-(define (printts [reset #f])
+(define (printts [reset #t] #:msg [args empty])
   (define ts (current-milliseconds))
   (define-values (q r) (quotient/remainder (- ts start-ts) 1000))
-  (when (not reset)
-    (printf "Time elapsed: ~a.~as\n" q r))
+  (when (not (empty? args))
+    (printf "Time elapsed: ~a.~as ~a\n" q r args))
   (set! start-ts ts))
 
 (define (gen-color [alpha #f])
@@ -88,44 +88,47 @@
   (define x-step (make-rectangular (/ (abs (real-part (- Q1 Q2))) (sub1 width)) 0))
   (define y-step (make-rectangular 0 (/ (abs (imag-part (- Q1 Q2))) (sub1 height))))
 
+  (define pl1 (dynamic-place "mandelbrot-worker.rkt" 'place-main))
+  (define pl2 (dynamic-place "mandelbrot-worker.rkt" 'place-main))
+    (define args1 (list width height
+                       0 width 0 (/ height 2)
+                       Q1 Q2
+                       escapeRadius maxIteration #t))
+    (define args2 (list width height
+                       0 width (/ height 2) height
+                       Q1 Q2
+                       escapeRadius maxIteration #t))
 
   ;(printf "step (~a, ~a)\n" x-step y-step)
-  (define (bloop xs xe ys ye)
-    (define pl (dynamic-place "mandelbrot-worker.rkt" 'place-main))
-    (define args (list width
-                       height
-                       xs
-                       xe
-                       ys
-                       ye
-                       Q1
-                       Q2
-                       escapeRadius
-                       maxIteration))
-    (place-channel-put pl args)
+  (define (bloop xs xe ys ye pl buffered)
 
-    (for ([ y (in-range ys ye)])
-      (define line-res (place-channel-get pl))
-      (define y-inc (- Q1 (* y-step y)))
-      (define line-pos (* width y))
-      (define byte-line-pos (* line-pos bpp))
+    (define all-res (place-channel-get pl))
+    (printts #:msg "Got idx data")
+    (define mark (if (> ys 0) "=" "-"))
+    (for ([y (in-range ys ye)]
+          [line-res all-res])
+      ;(when buffered
+        ;(place-channel-put pl "."))
+      ;(display mark)
+      ;(flush-output)
 
-      (for ([x (in-range xs xe)]
-            [res line-res])
-        (define iter (list-ref res 0))
-        (define Z (list-ref res 1))
-        (define z (list-ref res 2))
-        (define idx 0)
-        (when (< iter maxIteration)
-          (set! idx (color-idx z Z iter)))
-        (define cpos (+ byte-line-pos (* bpp x)))
-        (bytes-copy! m-bytes* cpos (list-ref colors idx))
-      ))
+      (define byte-line-pos (* (* width y) bpp))
+      (define line-data
+        (bytes-append* #""
+                      (for/list ([idx line-res])
+                        (list-ref colors idx))))
+      (bytes-copy! m-bytes* byte-line-pos line-data)
+      )
+    (printts #:msg "Finish render bytes")
     (place-wait pl)
+
     )
   ;two thread
-  (let ([f (future (lambda () (bloop 0 width 0 (/ height 2))))])
-    (list (bloop 0 width (/ height 2) height) (touch f)))
+    (place-channel-put pl1 args1)
+    (place-channel-put pl2 args2)
+  (bloop 0 width 0 (/ height 2) pl1 #t)
+  (bloop 0 width (/ height 2) height pl2 #t)
+
   m-bytes*)
 
 (define frame (new frame% [label "Mandelbrot"]
@@ -146,7 +149,7 @@
   (printts #t)
   (printf "Start render data...~ax~a\n" m-width m-height)
   (define new-bytes* (mandelbrot2 m-width m-height))
-  (printts)
+  (printts #:msg "Done")
   (displayln "Start render bitmap...")
   (send m-bitmap set-argb-pixels 0 0 m-width m-height new-bytes*)
   ;(printts)
