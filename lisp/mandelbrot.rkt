@@ -57,27 +57,15 @@
 
 ; Current maximum iteration
 (define maxIteration minimumIteration)
+(define place-max 4)
 
 ; Set as max part of Q1, Q2
 (define escapeRadius 2.25)
-(define logEscapeRadius (log escapeRadius))
 (define m-viewer 1)
-
-(define (color-idx c z i)
-  (define mu ( - i (/ (log (log (magnitude (+ (* z z) c)))) logEscapeRadius)))
-  (define idx (* (/ mu maxIteration) 768))
-  (if (or (>= idx 768) (< idx 0))
-      0
-      (inexact->exact (round idx))))
 
 (define (argb-fill data argb pos)
   (define cpos (* pos bpp))
   (bytes-copy! data cpos argb))
-
-(define (iterations c z i)
-  (if (or (>= i maxIteration) (>= (magnitude z) escapeRadius))
-      (values i z)
-      (iterations c (+ (* z z) c) (add1 i))))
 
 (define debug-bytes 0)
 (define (mandelbrot2 width height)
@@ -105,7 +93,7 @@
     (place-wait pl)
     )
   ; many places
-  (define count 4)
+  (define count place-max)
   (define pls
     (for/list ([i count])
       (define pl (dynamic-place "mandelbrot-worker.rkt" 'place-main))

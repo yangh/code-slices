@@ -2,6 +2,7 @@
 
 (provide place-main)
 
+(define debug-trace #f)
 (define (place-main pch)
   (define args (place-channel-get pch))
   (define-values (width
@@ -28,8 +29,9 @@
     (for/list ([y (in-range ys ye)])
       (define y-inc (- Q1 (* y-step y)))
       ; trace
-      (display mark)
-      (flush-output)
+      (when debug-trace
+        (display mark)
+        (flush-output))
       (for/list ([x (in-range xs xe)])
         (define z (+ y-inc (* x-step x)))
         (let loop ([c z]
