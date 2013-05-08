@@ -1,15 +1,13 @@
 #lang racket/gui
 
 ; TODO
-; 1. Use memorization to optimize color-idx if possible,
+; * Use memorization to optimize color-idx if possible,
 ;    ref: http://blog.racket-lang.org/2012/11/generics.html
-; 2. Use place to cacul mandelbrot set and runtime thread
-;    to find color index and render image
-; 3. How about use racket/flomap? to render image?
+; * How about use racket/flomap? to render image?
 ;
-; 4. Drap 'n Drop to change view port
+; * Drap 'n Drop to change view port
 ;
-; 5. Over view when zoomed, like a mini map
+; * Over view when zoomed, like a mini map
 
 (require racket/future)
 (require racket/date)
