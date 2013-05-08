@@ -57,7 +57,7 @@
 
 ; Current maximum iteration
 (define maxIteration minimumIteration)
-(define place-max 4)
+(define sub-square-max 2)
 
 ; Set as max part of Q1, Q2
 (define escapeRadius 2.25)
@@ -74,15 +74,14 @@
   (define (bloop xs xe ys ye pl buffered)
     (define all-res (place-channel-get pl))
     (printts #:msg "Got idx data")
-    (define mark (if (> ys 0) "=" "-"))
+    (define line-width (- xe xs))
+    (define byte-square-pos (* (+ (* width ys) xs) bpp))
+
     (for ([y (in-range ys ye)]
           [line-res all-res])
       ;(when buffered
         ;(place-channel-put pl "."))
-      ;(display mark)
-      ;(flush-output)
-
-      (define byte-line-pos (* (* width y) bpp))
+      (define byte-line-pos (+ byte-square-pos (* (* width (- y ys) bpp))))
       (define line-data
         (bytes-append* #""
                       (for/list ([idx line-res])
@@ -93,22 +92,29 @@
     (place-wait pl)
     )
   ; many places
-  (define count place-max)
+  (define count sub-square-max)
   (define pls
-    (for/list ([i count])
+    (for*/list ([r count]
+                [c count])
       (define pl (dynamic-place "mandelbrot-worker.rkt" 'place-main))
       (define y-step (/ height count))
+      (define x-step (/ width count))
       (define args (list width height
-                         0 width (* i y-step) (* (add1 i) y-step)
+                         (* r x-step) (* (add1 r) x-step)
+                         (* c y-step) (* (add1 c) y-step)
                          Q1 Q2
                          escapeRadius maxIteration #t))
+      ;(displayln args)
       (place-channel-put pl args)
       pl))
 
-  (for ([i count]
-        [pl pls])
+  (for* ([r count]
+         [c count])
     (define y-step (/ height count))
-    (bloop 0 width (* i y-step) (* (add1 i) y-step) pl #t))
+    (define x-step (/ width count))
+    (define pl (list-ref pls (+ (* r 2) c)))
+    (bloop (* r x-step) (* (add1 r) x-step)
+           (* c y-step) (* (add1 c) y-step) pl #t))
   m-bytes*)
 
 (define frame (new frame% [label "Mandelbrot"]

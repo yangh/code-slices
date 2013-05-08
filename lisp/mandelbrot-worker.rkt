@@ -2,7 +2,18 @@
 
 (provide place-main)
 
-(define debug-trace #f)
+; Find the index of the square define by the
+; xs/e ys/e in the square wxh
+(define (cacl-square-idx w h xs xe ys ye)
+  (define x-res (/ w (- xe xs)))
+  (define y-res (/ h (- ye ys)))
+  (define idx (+
+               (if (> xs 0) (* x-res (sub1 (/ w xs))) 0)
+               (if (> ys 0) (sub1 (/ h ys)) 0)))
+  ;(printf "x/y res ~a, ~a, ~a\n" x-res y-res idx)
+  idx)
+
+(define debug-trace #t)
 (define (place-main pch)
   (define args (place-channel-get pch))
   (define-values (width
@@ -15,7 +26,7 @@
   (define x-step (make-rectangular (/ (abs (real-part (- Q1 Q2))) (sub1 width)) 0))
   (define y-step (make-rectangular 0 (/ (abs (imag-part (- Q1 Q2))) (sub1 height))))
   (define logEscapeRadius (log escapeRadius))
-  (define mark (make-bytes 1 (+ 97 (/ ys (- ye ys)))))
+  (define mark (make-bytes 1 (+ 97 (cacl-square-idx width height xs xe ys ye))))
 
   (define (color-idx c z i)
     (define mu ( - i (/ (log (log (magnitude (+ (* z z) c)))) logEscapeRadius)))
