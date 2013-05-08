@@ -11,6 +11,7 @@
 ;
 ; 5. Over view when zoomed, like a mini map
 
+(require racket/future)
 (require racket/date)
 
 (define start-ts (current-milliseconds))
@@ -75,8 +76,6 @@
   (define cpos (* pos bpp))
   (bytes-copy! data cpos argb))
 
-(require racket/future)
-
 (define (iterations c z i)
   (if (or (>= i maxIteration) (>= (magnitude z) escapeRadius))
       (values i z)
@@ -109,15 +108,17 @@
     )
   ; many places
   (define count 4)
-  (define pls (for/list ([i count])
-                (define pl (dynamic-place "mandelbrot-worker.rkt" 'place-main))
-                (define y-step (/ height count))
-                (define args (list width height
-                                   0 width (* i y-step) (* (add1 i) y-step)
-                                   Q1 Q2
-                                   escapeRadius maxIteration #t))
-                (place-channel-put pl args)
-                pl))
+  (define pls
+    (for/list ([i count])
+      (define pl (dynamic-place "mandelbrot-worker.rkt" 'place-main))
+      (define y-step (/ height count))
+      (define args (list width height
+                         0 width (* i y-step) (* (add1 i) y-step)
+                         Q1 Q2
+                         escapeRadius maxIteration #t))
+      (place-channel-put pl args)
+      pl))
+
   (for ([i count]
         [pl pls])
     (define y-step (/ height count))
