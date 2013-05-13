@@ -32,9 +32,10 @@
     (define mu ( - i (/ (log (log (magnitude (+ (* z z) c)))) logEscapeRadius)))
     ; shit
     (define idx (inexact->exact (round (real-part (* (/ mu maxIteration) 768)))))
-    (if (or (>= idx 768) (< idx 0))
-        0
-        idx))
+    (cond
+      [(>= idx 768) (remainder idx 768)]
+      [(< idx 0) (abs (remainder idx 768))]
+      [else idx]))
 
   (define lls
     (for/list ([y (in-range ys ye)])

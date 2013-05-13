@@ -41,8 +41,8 @@
           (list->bytes (list r g b))))))
 
 ; Keep ratio with (- Q1 Q2)
-(define m-width 750)
-(define m-height 600)
+(define m-width 326)
+(define m-height 300)
 (define bpp 4)
 (define colors (gen-color #t))
 
@@ -51,17 +51,19 @@
 (define Q1 std-Q1)
 (define Q2 std-Q2)
 
-(define minimumIteration 25)
+(define minimumIteration 50)
 (define maximumIteration 500)
-(define stepIteration 25)
+(define stepIteration 50)
 
 ; Current maximum iteration
 (define maxIteration minimumIteration)
-(define sub-square-max 2)
 
 ; Set as max part of Q1, Q2
 (define escapeRadius 2.25)
 (define m-viewer 1)
+(define sub-square-max 2)
+(define zoom-out-level 16.0)
+(define zoom-in-level 2.0)
 
 (define (argb-fill data argb pos)
   (define cpos (* pos bpp))
@@ -153,17 +155,18 @@
   (define p (- Q1 e-pos-offset))
   ;(printf "offset: ~a, p-e: ~a\n" e-pos-offset p)
   (if in
-      (set! diff (/ diff 8.0))
-      (set! diff (* diff 2.0)))
+      (set! diff (* diff zoom-in-level))
+      (set! diff (/ diff zoom-out-level)))
   (set! Q1 (+ p diff))
   (set! Q2 (- p diff))
 
   ; Adjust max iteration to get detailed image on zoom
   (if in
+      (when (> maxIteration minimumIteration)
+        (set! maxIteration (- maxIteration stepIteration)))
       (when (< maxIteration maximumIteration)
         (set! maxIteration (+ maxIteration stepIteration)))
-      (when (> maxIteration minimumIteration)
-        (set! maxIteration (- maxIteration stepIteration))))
+)
   (printf "New iteration limit: ~a\n" maxIteration)
 
   (update-viewer m-viewer))
@@ -173,8 +176,8 @@
     (define/override (on-event e)
       (define e-type (send e get-event-type))
       (cond
-        [(equal? e-type 'left-up) (zoom #t e)]
-        [(equal? e-type 'right-up) (zoom #f e)])
+        [(equal? e-type 'left-up)  (zoom #f e)]
+        [(equal? e-type 'right-up) (zoom #t e)])
       ; need call super on-event?
       ;(displayln e-type)
       )
