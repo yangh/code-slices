@@ -1,8 +1,6 @@
 #lang racket
 
-(define (TODO msg)
-  (displayln msg))
-
+; printf("%0{len}x", n)
 (define (number->hexstring n len)
   (define hex (format "~X" n))
   (define remd (- len (string-length hex)))
@@ -48,15 +46,15 @@
          (values #f (string-append "Unknown status: " status))]))
 
     (define (switch-socket-transport in out)
-      ;(displayln "Switch socket transport type to any")
+      ; TODO: Add more transport type as needed
       (define cmd "host:transport-any")
       (sendquery cmd out)
       (read-status in))
 
-    (define (query cmd)
+    (define (query cmd func)
       (with-handlers ([exn:fail:network?
-                       (lambda (errno)
-                         (values #f #f #f "Failed to connect adb server"))])
+                       (lambda (errno) ; TODO: more detailed error info
+                         (displayln "Failed to connect adb server"))])
         (define-values (c-in c-out) (tcp-connect host port))
         (printf "Connected, do query: ~a\n" cmd)
 
@@ -67,41 +65,30 @@
         (sendquery cmd c-out)
         (define-values (status msg) (read-status c-in))
         (cond
-          [status
-           (values status c-in c-out "")]
-          [else
-           (close-input-port c-in)
-           (close-output-port c-out)
-           (values status #f #f msg)])
-        ))
-    
+          [status (func c-in c-out)]
+          [else   (displayln msg)])
+        (close-input-port c-in)
+        (close-output-port c-out)
+      ))
+
     (define/public (devices)
       (define cmd "host:devices")
-      (define-values (status in out msg) (query cmd))
-      (close-output-port out)
-      (cond
-        [status
-         (define-values (len dlist) (read-payload in))
-         (close-input-port in)
-         ;(displayln "Devices:")
-         (display dlist)]
-        [else
-         (printf "Error: ~a\n" msg)]))
+      (query cmd
+             (lambda (in out)
+               (define-values (len dlist) (read-payload in))
+               ;(displayln "Devices:")
+               (display dlist))))
 
     (define/public (shell argv)
       (define cmd (string-append "shell:" argv))
-      (define-values (status c-in c-out msg) (query cmd))
-      (cond
-        [status
-         (let loop ([fd c-in])
-           (define line (read-line fd))
-           (when (not (eof-object? line))
-             (display line)
-             (loop fd)))
-         (close-input-port c-in)
-         (close-output-port c-out)]
-        [else
-         (printf "Error: ~a\n" msg)]))
+      (query cmd
+             (lambda (in out)
+               (let loop ([fd in])
+                 (define line (read-line fd))
+                 (when (not (eof-object? line))
+                   (display line)
+                   (loop fd))))
+             ))
     ))
 
 (define adb (new adb%))
