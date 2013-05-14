@@ -21,9 +21,19 @@
     (printf "Time elapsed: ~a.~as ~a\n" q r args))
   (set! start-ts ts))
 
+(define color-idx-max 255)
+;(define color-idx-max 768)
+
 (define (gen-color [alpha #f])
+  (for/list ([n color-idx-max])
+    (list->bytes (if alpha
+      (list 255 n n n)
+      (list n n n)))
+  ))
+
+(define (gen-color2 [alpha #f])
   (define cs '())
-  (define cmax 768)
+  (define cmax color-idx-max)
   (define cstep 1)
   (for/list ([i (in-range 0 cmax cstep)])
     (let-values ([(r g b) (values 0 0 0)])
@@ -105,7 +115,7 @@
                          (* r x-step) (* (add1 r) x-step)
                          (* c y-step) (* (add1 c) y-step)
                          Q1 Q2
-                         escapeRadius maxIteration #t))
+                         escapeRadius maxIteration color-idx-max #t))
       ;(displayln args)
       (place-channel-put pl args)
       pl))

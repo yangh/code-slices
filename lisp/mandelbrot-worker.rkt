@@ -22,6 +22,7 @@
                   Q1 Q2
                   escapeRadius
                   maxIteration
+                  maxColorIdx
                   buffered) (apply values args))
   (define x-step (make-rectangular (/ (abs (real-part (- Q1 Q2))) (sub1 width)) 0))
   (define y-step (make-rectangular 0 (/ (abs (imag-part (- Q1 Q2))) (sub1 height))))
@@ -31,10 +32,10 @@
   (define (color-idx c z i)
     (define mu ( - i (/ (log (log (magnitude (+ (* z z) c)))) logEscapeRadius)))
     ; shit
-    (define idx (inexact->exact (round (real-part (* (/ mu maxIteration) 768)))))
+    (define idx (inexact->exact (round (real-part (* (/ mu maxIteration) maxColorIdx)))))
     (cond
-      [(>= idx 768) (remainder idx 768)]
-      [(< idx 0) (abs (remainder idx 768))]
+      [(>= idx maxColorIdx) (remainder idx maxColorIdx)]
+      [(< idx 0) (abs (remainder idx maxColorIdx))]
       [else idx]))
 
   (define lls
