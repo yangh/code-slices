@@ -11,7 +11,7 @@
                (if (> xs 0) (* x-res (sub1 (/ w xs))) 0)
                (if (> ys 0) (sub1 (/ h ys)) 0)))
   ;(printf "x/y res ~a, ~a, ~a\n" x-res y-res idx)
-  idx)
+  (round idx))
 
 (define debug-trace #t)
 (define (place-main pch)
