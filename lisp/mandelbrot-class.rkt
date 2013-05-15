@@ -37,15 +37,17 @@
      [height 300]
      [sub-square-max 2])
     
-    (define m-Q1 Q1)
-    (define m-Q2 Q2)
+    (define std-Q1 Q1)
+    (define std-Q2 Q2)
     (define m-viewport-changed #t) ; init in true first draw
     (define m-viewsize-changed #f)
+    (define zoom-out-level 8.0)
+    (define zoom-in-level 2.0)
     (define points-info-hash (make-hash))
     
     (define minimumIteration 25)
-    (define maximumIteration 500)
-    (define stepIteration 25)
+    (define maximumIteration 1000)
+    (define stepIteration 80)
     
     ; Set as max part of Q1, Q2
     (define escapeRadius 2.25)
@@ -60,14 +62,34 @@
 
     ; Viewport
     (define/public (get-viewport)
-      (values m-Q1 m-Q2))
+      (values Q1 Q2))
     (define/public (set-viewport q1 q2)
       (when (or
-             (not (equal? m-Q1 q1))
-             (not (equal? m-Q2 q2)))
-        (set! m-Q1 q1)
-        (set! m-Q2 q2)
+             (not (equal? Q1 q1))
+             (not (equal? Q2 q2)))
+        (set! Q1 q1)
+        (set! Q2 q2)
         (set! m-viewport-changed #t)))
+
+    (define/public (zoom in x y)
+      (define diff (- Q1 Q2))
+      (define e-pos-offset (make-rectangular
+                            (* (real-part diff) (/ x (sub1 width)))
+                            (* (imag-part diff) (/ y (sub1 height)))))
+      (define p (- Q1 e-pos-offset))
+      ;(printf "offset: ~a, p-e: ~a\n" e-pos-offset p)
+      (if in
+        (set! diff (* diff zoom-in-level))
+        (set! diff (/ diff zoom-out-level)))
+      (set-viewport (+ p diff) (- p diff))
+
+      ; Adjust max iteration to get detailed image on zoom
+      (if in
+          (when (> maxIteration minimumIteration)
+            (set! maxIteration (- maxIteration stepIteration)))
+          (when (< maxIteration maximumIteration)
+            (set! maxIteration (+ maxIteration stepIteration))))
+      (printf "New iteration limit: ~a\n" maxIteration))
 
     ; Iterations
     (define/public (get-max-iter)
@@ -177,6 +199,7 @@
 
 (define m-viewer 1)
 (define m-bitmap 1)
+(define m-mandelbrot 1)
 
 (define (draw-mandelbrot dc)
   ;(displayln "TODO: draw to canvas")
@@ -194,6 +217,8 @@
   (define x (send e get-x))
   (define y (send e get-y))
   (printf "~a, ~a, zoom ~a\n" x y in)
+  (send m-mandelbrot zoom in x y)
+  (update-viewer m-viewer m-mandelbrot)
 )
 
 (define canvas-box%
@@ -201,8 +226,8 @@
     (define/override (on-event e)
       (define e-type (send e get-event-type))
       (cond
-        [(equal? e-type 'left-up) (zoom #t e)]
-        [(equal? e-type 'right-up) (zoom #f e)])
+        [(equal? e-type 'left-up) (zoom #f e)]
+        [(equal? e-type 'right-up) (zoom #t e)])
       ; need call super on-event?
       ;(displayln e-type)
       )
@@ -226,7 +251,7 @@
                [width m-width]
                [height m-height]))
 
-
+(set! m-mandelbrot m)
 (update-viewer m-viewer m)
 (send frame show #t)
 

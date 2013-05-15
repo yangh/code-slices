@@ -175,8 +175,7 @@
       (when (> maxIteration minimumIteration)
         (set! maxIteration (- maxIteration stepIteration)))
       (when (< maxIteration maximumIteration)
-        (set! maxIteration (+ maxIteration stepIteration)))
-)
+        (set! maxIteration (+ maxIteration stepIteration))))
   (printf "New iteration limit: ~a\n" maxIteration)
 
   (update-viewer m-viewer))
