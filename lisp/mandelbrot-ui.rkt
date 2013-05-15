@@ -12,10 +12,8 @@
 (define window-height 210)
 (define viewer-mini-width 240)
 (define viewer-mini-height 210)
-(define viewer-main-width 500)
-(define viewer-main-height 446)
-
-(define mini2-viewer 1)
+(define viewer-main-width 510)
+(define viewer-main-height 450)
 
 (define frame (new frame% [label "Mandelbrot"]
                    [width window-width]
@@ -38,19 +36,27 @@
                            [parent left-v-pane]
                            [alignment '(left center)])])
 
-  (define zoom-mb
-    (lambda (canvas event)
-            (define x (send event get-x))
-            (define y (send event get-y))
-            (define e-type (send event get-event-type))
-            (cond
-              [(equal? e-type 'left-up)  (send canvas zoom #f x y)]
-              [(equal? e-type 'right-up) (send canvas zoom #t x y)])))
+(define (transform-point canvas1 canvas2 x y)
+  (define w1 (send canvas1 get-width))
+  (define w2 (send canvas2 get-width))
+  (define h1 (send canvas1 get-height))
+  (define h2 (send canvas2 get-height))
+  (values (round(* x (/ w2 w1)))
+          (round(* y (/ h2 h1)))))
 
-  (define draw-cross-marker
-    (lambda (canvas pos-list)
-      (displayln "Draw my cross marker")
-      (when (not (empty? pos-list))
+(define zoom-mb
+  (lambda (canvas event)
+    (define x (send event get-x))
+    (define y (send event get-y))
+    (define e-type (send event get-event-type))
+    (cond
+      [(equal? e-type 'left-up)  (send canvas zoom #f x y)]
+      [(equal? e-type 'right-up) (send canvas zoom #t x y)])))
+
+(define draw-cross-marker
+  (lambda (canvas pos-list)
+    (displayln "Draw my cross marker")
+    (when (not (empty? pos-list))
       (define pos (cdr pos-list))
       (when (not (empty? pos))
         (define-values (x y) (apply values (list-ref pos 0)))
@@ -63,15 +69,23 @@
         )
       (displayln pos-list))))
 
-  (define update-marker
-    (lambda (canvas event)
-      (define e-type (send event get-event-type))
-      (cond
-        [(equal? e-type 'left-up)
-           (displayln "Update markder...")
-           (send canvas update-view)])
-      (send mini2-viewer restore-mb-viewport)
-      (zoom-mb mini2-viewer event)
+(define zoom-to-target
+  (lambda (canvas event)
+    (define e-type (send event get-event-type))
+    (cond
+      [(equal? e-type 'left-up)
+       (displayln "Update markder...")
+       (send canvas update-view)
+       (send canvas transfer-viewport-to-target)
+       
+       (define x (send event get-x))
+       (define y (send event get-y))
+       (define target (send canvas get-zoom-target))
+       (define-values (nx ny) (transform-point canvas target x y))
+       (send event set-x nx)
+       (send event set-y ny)
+       (printf "Transformed event: ~a ~a -> ~a ~a\n" x y nx ny)
+       (zoom-mb target event)])
     ))
 
 (define mini1-viewer (new canvas-box%
@@ -80,20 +94,25 @@
                          [min-width viewer-mini-width]
                          [min-height viewer-mini-height]
                          [draw-marker draw-cross-marker]
-                         [event-callback update-marker]
+                         [event-callback zoom-to-target]
                     ))
-(new message%	 
-   	 	[label "[Overview Level 2]"]	 
-   	 	[parent (new vertical-pane%
-                             [parent left-v-pane]
-                             [alignment '(left center)])])
+(new message%
+     [label "[Overview Level 2]"]	 
+     [parent (new vertical-pane%
+                  [parent left-v-pane]
+                  [alignment '(left center)])])
 
-(set! mini2-viewer (new canvas-box%
-                         [parent (new panel% [parent left-v-pane]
-                                             [style '(border)])]
-                         [min-width viewer-mini-width]
-                         [min-height viewer-mini-height]
+(define mini2-viewer (new canvas-box%
+                          [parent (new panel% [parent left-v-pane]
+                                       [style '(border)])]
+                          [min-width viewer-mini-width]
+                          [min-height viewer-mini-height]
+                          [m-mandelbrot (new mandelbrot% [zoom-out-level 16.0])]
+                          [draw-marker draw-cross-marker]
+                          [event-callback zoom-to-target]
                     ))
+
+(send mini1-viewer set-zoom-target mini2-viewer)
 
 (define mini-z-pos (new message%	 
                         [label "[Pos: a+bi]"]	 
@@ -120,12 +139,14 @@
                                          [parent right-v-pane]
                                          [alignment '(right center)])]))
 (define main-viewer (new canvas-box% [parent (new panel%
-                                            [parent right-v-pane]
-                                            [style '(border)])]
-                    [min-width viewer-main-width]
-                    [min-height viewer-main-height]
-                    ))
+                                                  [parent right-v-pane]
+                                                  [style '(border)])]
+                         [min-width viewer-main-width]
+                         [min-height viewer-main-height]
+                         [event-callback zoom-mb]
+                         ))
 
+(send mini2-viewer set-zoom-target main-viewer)
 
 (send frame show #t)
 

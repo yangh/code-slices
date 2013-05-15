@@ -35,20 +35,20 @@
     (init-field
      [Q1 (make-rectangular -2.25 1.5)]
      [Q2 (make-rectangular 1 -1.5)]
-     [maxIteration 25]
+     [maxIteration 50]
      [width 326]
      [height 300]
-     [sub-square-max 2])
+     [sub-square-max 2]
+     [zoom-out-level 8.0]
+     [zoom-in-level 2.0])
     
     (define std-Q1 Q1)
     (define std-Q2 Q2)
     (define m-viewport-changed #t) ; init in true first draw
     (define m-viewsize-changed #f)
-    (define zoom-out-level 8.0)
-    (define zoom-in-level 2.0)
     (define points-info-hash (make-hash))
     
-    (define minimumIteration 25)
+    (define minimumIteration 50)
     (define maximumIteration 1000)
     (define stepIteration 80)
     
@@ -200,7 +200,8 @@
     (init-field [event-callback
                  (lambda (canvas event) #t)]
                 [draw-marker
-                 (lambda (canvas pos-list) (displayln "Draw marker nothing."))])
+                 (lambda (canvas pos-list) (displayln "Draw marker nothing."))]
+                [m-mandelbrot (new mandelbrot%)])
     (super-new)
 
     ; Single pair for click, Double for a area
@@ -209,15 +210,24 @@
 
     (define m-width (send this get-width))
     (define m-height (send this get-height))
-    (printf "Canvas size: ~a ~a\n" m-width m-height)
+    ;(printf "Canvas size: ~a ~a\n" m-width m-height)
 
-    (define m-mandelbrot (new mandelbrot%
-                              [width m-width]
-                              [height m-height]))
+    (define zoom-target-canvas 1)
+    (define/public (set-zoom-target t)
+        (set! zoom-target-canvas t))
+    (define/public (get-zoom-target)
+      zoom-target-canvas)
+
+    (define/public (get-mb) m-mandelbrot)
+    
     (define m-bitmap (make-object bitmap% m-width m-height #f #t))
 
-    (define/public (restore-mb-viewport)
-      (send m-mandelbrot set-std-viewport))
+    (define/public (transfer-viewport-to-target)
+      (define-values (q1 q2) (send m-mandelbrot get-viewport))
+      (define max-iter (send m-mandelbrot get-max-iter))
+      (define target-mb (send zoom-target-canvas get-mb))
+      (send target-mb set-viewport q1 q2)
+      (send target-mb set-max-iter max-iter))
 
     (define/public (update-view)
       (define new-bitmap (send m-mandelbrot get-bitmap))
