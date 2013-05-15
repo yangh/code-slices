@@ -1,5 +1,8 @@
 #lang racket
 
+(provide mandelbrot%)
+(provide canvas-box%)
+
 (require racket/gui)
 (require racket/draw)
 (require images/flomap)
@@ -67,9 +70,12 @@
       (when (or
              (not (equal? Q1 q1))
              (not (equal? Q2 q2)))
+        (printf "New viewport: ~a ~a\n" q1 q2)
         (set! Q1 q1)
         (set! Q2 q2)
         (set! m-viewport-changed #t)))
+    (define/public (set-std-viewport)
+      (set-viewport std-Q1 std-Q2))
 
     (define/public (zoom in x y)
       (define diff (- Q1 Q2))
@@ -103,8 +109,8 @@
       (when (or m-viewport-changed
                 m-viewsize-changed)
         (displayln "TODO: re-caculate")
-        (set m-viewport-changed #f)
-        (set m-viewsize-changed #f)
+        (set! m-viewport-changed #f)
+        (set! m-viewsize-changed #f)
         (set! changed #t))
       changed)
     
@@ -120,11 +126,13 @@
       (when (or
              (not (equal? width w))
              (not (equal? height h)))
+        (printf "New viewsize: ~a ~a\n" w h)
         (set! width w)
         (set! height h)
         (set! m-viewsize-changed #t)
         (set! m-bitmap (create-bitmap width height))
       ))
+
     (define/public (get-bitmap)
       (when (refresh)
         (displayln "Update bitmap with new bytes..")
@@ -187,71 +195,92 @@
   ))
 
 
-; UI
-(define m-width 326)
-(define m-height 300)
+(define canvas-box%
+  (class canvas%
+    (init-field [event-callback
+                 (lambda (canvas event) #t)]
+                [draw-marker
+                 (lambda (canvas pos-list) (displayln "Draw marker nothing."))])
+    (super-new)
 
-(define frame (new frame% [label "Mandelbrot"]
+    ; Single pair for click, Double for a area
+    (define last-event-pos '())
+    (define/public (get-last-event-pos) last-event-pos)
+
+    (define m-width (send this get-width))
+    (define m-height (send this get-height))
+    (printf "Canvas size: ~a ~a\n" m-width m-height)
+
+    (define m-mandelbrot (new mandelbrot%
+                              [width m-width]
+                              [height m-height]))
+    (define m-bitmap (make-object bitmap% m-width m-height #f #t))
+
+    (define/public (restore-mb-viewport)
+      (send m-mandelbrot set-std-viewport))
+
+    (define/public (update-view)
+      (define new-bitmap (send m-mandelbrot get-bitmap))
+      (when (not (equal? m-bitmap new-bitmap))
+        (set! m-bitmap new-bitmap))
+      (on-paint))
+    
+    (define/public (zoom in x y)
+      (printf "~a, ~a, zoom ~a\n" x y in)
+      (send m-mandelbrot zoom in x y)
+      (update-view))
+
+    (define/override (on-event e)
+      ; Need call super on-event?
+      ;(displayln e-type)
+      (define x (send e get-x))
+      (define y (send e get-y))
+      (define e-type (send e get-event-type))
+      (cond
+        [(equal? e-type 'left-down)
+           (set! last-event-pos (list (list x y)))]
+        [(equal? e-type 'left-up)
+           (set! last-event-pos (list (car last-event-pos) (list x y)))])
+      (event-callback this e)
+      )
+    (define/override (on-size w h)
+      ;(super on-size w h)
+      (send m-mandelbrot set-viewsize w h)
+      (update-view)
+      (printf "New size ~a, ~a\n" w h)
+      )
+    (define/override (on-paint)
+      ;(super on-paint)
+      ;(printf "on-paint\n")
+      (define dc (send this get-dc))
+      (send dc draw-bitmap m-bitmap 0 0)
+      (draw-marker this last-event-pos)
+      )
+  ))
+
+; UI
+(module+ main
+  (define frame (new frame% [label "Mandelbrot"]
                    [width 300]
                    [height 200]
                    [border 0]
                    [alignment '(center center)]))
 
-(define m-viewer 1)
-(define m-bitmap 1)
-(define m-mandelbrot 1)
+  (define zoom-mb
+    (lambda (canvas event)
+            (define x (send event get-x))
+            (define y (send event get-y))
+            (define e-type (send event get-event-type))
+            (cond
+              [(equal? e-type 'left-up)  (send canvas zoom #f x y)]
+              [(equal? e-type 'right-up) (send canvas zoom #t x y)])))
 
-(define (draw-mandelbrot dc)
-  ;(displayln "TODO: draw to canvas")
-  (send dc draw-bitmap m-bitmap 0 0)
-  )
+  (define m-viewer (new canvas-box% 
+                      [parent frame]
+                      [min-width 330]
+                      [min-height 300]
+                      [event-callback zoom-mb]
+                      ))
 
-(define (update-viewer viewer mb)
-  ;(displayln "TODO: update bitmap")
-  (set! m-bitmap (send mb get-bitmap))
-  ;(printts)
-  (send viewer refresh-now)
-  )
-
-(define (zoom in e)
-  (define x (send e get-x))
-  (define y (send e get-y))
-  (printf "~a, ~a, zoom ~a\n" x y in)
-  (send m-mandelbrot zoom in x y)
-  (update-viewer m-viewer m-mandelbrot)
+  (send frame show #t)
 )
-
-(define canvas-box%
-  (class canvas%
-    (define/override (on-event e)
-      (define e-type (send e get-event-type))
-      (cond
-        [(equal? e-type 'left-up) (zoom #f e)]
-        [(equal? e-type 'right-up) (zoom #t e)])
-      ; need call super on-event?
-      ;(displayln e-type)
-      )
-    (define/override (on-size w h)
-      ;(super on-size w h)
-      (printf "New size ~a, ~a\n" w h)
-      )
-    (super-new)))
-
-(set! m-viewer (new canvas-box% 
-                    [parent frame]
-                    [min-width m-width]
-                    [min-height m-height]
-                    [paint-callback
-                     (lambda (canvas dc)
-                      (draw-mandelbrot dc))]
-                    ))
-
-(define m (new mandelbrot%
-               [maxIteration 25]
-               [width m-width]
-               [height m-height]))
-
-(set! m-mandelbrot m)
-(update-viewer m-viewer m)
-(send frame show #t)
-
