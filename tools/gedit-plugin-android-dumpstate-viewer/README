@@ -1,11 +1,11 @@
 Android dumpstate viewer
 ========================
 
-A Python plugin help to view android dumpsate output
+A Python plugin of gedit for help to view android dumpstate output
 
 Get a dumpstate file for you android device:
 
- $> adb shell dumpsate > dumpstate.txt
+ $> adb shell dumpstate > dumpstate.txt
 
 Installation
 ------------
@@ -18,7 +18,7 @@ Usage
 1. Enable this plugin in the menu Edit->Preferences->Plugins
 2. Press F9 to open side pane
 3. Switch to the 'Dump Index' tab
-4. Open a dumpsate file
+4. Open a dumpstate file
 
 Switch section
 --------------

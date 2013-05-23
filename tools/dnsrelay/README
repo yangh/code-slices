@@ -1,7 +1,7 @@
 DNS Lookup tool
 ===============
 
-Based on GAE/Python.
+An GAE/Python application which provides DNS lookup service via http.
 
 More info: http://code.google.com/p/cmwrap/wiki/DNSServerHttp
 
