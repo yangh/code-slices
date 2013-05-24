@@ -1,5 +1,7 @@
 #lang racket
 
+(provide adb%)
+
 ; printf("%0{len}x", n)
 (define (number->hexstring n len)
   (define hex (format "~X" n))
@@ -21,6 +23,7 @@
       (define c-out #f)
       (set!-values (c-in c-out) (tcp-connect host port)))
     
+    ; Query format: <Len_int32><ArbitrarilyDataInLen>
     (define (read-payload fd)
       (define hexstr (read-string 4 fd))
       (define len (string->number hexstr 16))
@@ -32,7 +35,8 @@
       (display cmd fd)
       (flush-output fd)
       #t)
- 
+
+    ; adb server return a status msg for every cmd
     (define (read-status c-in)
       (define status (read-string 4 c-in))
       ;(printf "Status: ~a\n" status)
@@ -45,12 +49,16 @@
         [else
          (values #f (string-append "Unknown status: " status))]))
 
+    ; Switch socket transport type so that we can
+    ; transfer any mount of data
     (define (switch-socket-transport in out)
       ; TODO: Add more transport type as needed
       (define cmd "host:transport-any")
+      ;(printf "Switch socket transport type to: ~a\n" cmd)
       (sendquery cmd out)
       (read-status in))
 
+    ; query local adb server via socket
     (define (query cmd func)
       (with-handlers ([exn:fail:network?
                        (lambda (errno) ; TODO: more detailed error info
@@ -58,7 +66,8 @@
         (define-values (c-in c-out) (tcp-connect host port))
         (printf "Connected, do query: ~a\n" cmd)
 
-        (when (not (equal? "host" (substring cmd 0 4)))
+        (when (and (>= (string-length cmd) 4)
+                   (not (equal? "host" (substring cmd 0 4))))
           ;TODO check switch result
           (switch-socket-transport c-in c-out))
 
@@ -71,29 +80,38 @@
         (close-output-port c-out)
       ))
 
-    (define/public (devices)
-      (define cmd "host:devices")
-      (query cmd
-             (lambda (in out)
-               (define-values (len dlist) (read-payload in))
-               ;(displayln "Devices:")
-               (display dlist))))
+    (define display-simple-reply
+      (lambda (in out)
+        (define-values (len dlist) (read-payload in))
+        (display dlist)))
+    
+    ; Host services
+    ;   devices/version...
+    (define/public (host-service name #:cb [callback display-simple-reply])
+      (define cmd (format "host:~a" name))
+      (query cmd callback))
+    
+    (define default-shell-callback
+      (lambda (in out)
+        (let loop ([fd in])
+          (define line (read-line fd))
+          (when (not (eof-object? line))
+            (display line)
+            (loop fd)))))
 
-    (define/public (shell argv)
-      (define cmd (string-append "shell:" argv))
-      (query cmd
-             (lambda (in out)
-               (let loop ([fd in])
-                 (define line (read-line fd))
-                 (when (not (eof-object? line))
-                   (display line)
-                   (loop fd))))
-             ))
+    ; Local services
+    ;   shell/remount/reboot...
+    (define/public (local-service name argv #:cb [callback default-shell-callback])
+      (define cmd (format "~a:~a" name argv))
+      (query cmd callback))
     ))
 
-(define adb (new adb%))
-;(send adb connect "localhost" 5037)
-(send adb devices)
-;(send adb shell "logcat")
-(send adb shell "ls /system/bin/sh")
+(module+ main
+  (define adb (new adb%))
+  ;(send adb connect "localhost" 5037)
+  (send adb host-service 'version)
+  (send adb host-service 'devices)
+  ;(send adb shell "logcat")
+  (send adb local-service 'shell "ls -l /system/bin/sh")
+  )
     
