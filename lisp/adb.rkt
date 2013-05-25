@@ -59,7 +59,7 @@
       (read-status in))
 
     ; query local adb server via socket
-    (define (query cmd func)
+    (define (query cmd func #:persist-con [persist-con #f])
       (with-handlers ([exn:fail:network?
                        (lambda (errno) ; TODO: more detailed error info
                          (displayln "Failed to connect adb server"))])
@@ -76,8 +76,9 @@
         (cond
           [status (func c-in c-out)]
           [else   (displayln msg)])
-        (close-input-port c-in)
-        (close-output-port c-out)
+        (when (not persist-con)
+          (close-input-port c-in)
+          (close-output-port c-out))
       ))
 
     (define display-simple-reply
@@ -101,9 +102,11 @@
 
     ; Local services
     ;   shell/remount/reboot...
-    (define/public (local-service name argv #:cb [callback default-shell-callback])
+    (define/public (local-service name argv
+                                  #:cb [callback default-shell-callback]
+                                  #:persist-con [persist-con #f])
       (define cmd (format "~a:~a" name argv))
-      (query cmd callback))
+      (query cmd callback #:persist-con persist-con))
     ))
 
 (module+ main
@@ -114,4 +117,3 @@
   ;(send adb shell "logcat")
   (send adb local-service 'shell "ls -l /system/bin/sh")
   )
-    
