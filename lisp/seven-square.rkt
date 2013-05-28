@@ -1,8 +1,10 @@
 #lang racket/gui
 
 (require "adb.rkt")
+(require images/flomap)
 
 (define fb-capture-timer 1)
+(define do-scale #f)
 
 (define sq-frame%
   (class frame%
@@ -14,22 +16,13 @@
 
 (define frame (new sq-frame% [label "Seven Square"]))
 
-(define WIDTH 480)
-(define HEIGHT 800)
+(define WIDTH 360)
+(define HEIGHT 600)
 (define BPP 4)
-
-(define fbbitmap (make-object bitmap% WIDTH HEIGHT #f #t))
-
-(define (draw-rawimage dc)
-  ;(send fbbitmap set-argb-pixels 0 0 WIDTH HEIGHT (load1frame))
-  (send dc draw-bitmap fbbitmap 0 0))
 
 (define viewer (new canvas% [parent frame]
                     [min-width WIDTH]
-                    [min-height HEIGHT]
-                    [paint-callback
-                     (lambda (canvas dc)
-                       (draw-rawimage dc))]))
+                    [min-height HEIGHT]))
 
 (define (showf) (send frame show #t))
 
@@ -62,18 +55,48 @@
                     (le32->number (read-bytes 4 in)))))
   (fbinfo a b c d e f g h i j k l m))
 
+(define fbbitmap (make-object bitmap%
+                   1 1 #f #t))
+
+(define (update-bitmap-size w h)
+  (when (or (not (equal? w (send fbbitmap get-width)))
+            (not (equal? h (send fbbitmap get-height))))
+    (set! fbbitmap (make-object bitmap%
+                     w h #f #t))
+  (when (not do-scale)
+    (displayln "Resize window")
+    (send frame resize w h))
+    ))
+
 (define fb-callback
   (lambda (in out)
     (define fb (read-fbinfo in))
     ;(printf "~a\n" fb)
-    (define raw-size (fbinfo-size fb))
-    (define raw (read-bytes raw-size in))
+    (define-values (size width height)
+      (values (fbinfo-size fb)
+              (fbinfo-width fb)
+              (fbinfo-height fb)))
+    (define raw (read-bytes size in))
+
+    (define (draw raw)
+      (update-bitmap-size width height)
+      (send fbbitmap set-argb-pixels 0 0 width height
+            ; Fake rgba to argbraw
+            (bytes-append (make-bytes 1 255) raw))
+      (cond
+        [do-scale
+         (define floimg (bitmap->flomap fbbitmap))
+         (define scaled (flomap->bitmap
+                         (flomap-scale floimg
+                                       (/ WIDTH width)
+                                       (/ HEIGHT height))))
+         (send (send viewer get-dc)
+               draw-bitmap scaled 0 0)]
+        [else
+         (send (send viewer get-dc)
+               draw-bitmap fbbitmap 0 0)]))
     (cond
-      [(equal? raw-size (bytes-length raw))
-       (send fbbitmap set-argb-pixels 0 0 WIDTH HEIGHT
-             ; Fake rgba to argbraw
-             (bytes-append (make-bytes 1 255) raw))
-       (send viewer refresh-now)]
+      [(equal? size (bytes-length raw)) (draw raw)]
       [else (displayln "Dropped currupted frame")])
     ))
 
