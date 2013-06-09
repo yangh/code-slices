@@ -12,29 +12,6 @@
 (define do-fb-checksum-sha1 #t)
 (define wait-thread-id #f)
 
-(define sq-frame%
-  (class frame%
-    (super-new)
-    (define (on-close)
-      (printf "Exit..\n")
-      (when (thread? wait-thread-id)
-        (kill-thread wait-thread-id))
-      (send fb-capture-timer stop))
-    (augment on-close)))
-
-(define xframe (new sq-frame% [label "Seven Square"]))
-
-(define WIDTH 360)
-(define HEIGHT 600)
-(define BPP 4)
-
-(define viewer (new canvas% [parent xframe]
-                    [min-width WIDTH]
-                    [min-height HEIGHT]))
-
-(define (showf) (send xframe show #t))
-(define (resize-frame w h) (send xframe resize w h))
-
 (struct fbinfo (version
                 bpp
                 size
@@ -63,8 +40,75 @@
                     [(bytes? val) (le32->number val)]
                     [else 0]))))
 
+(define sq-frame%
+  (class frame%
+    (super-new)
+
+    (send this resize WIDTH HEIGHT)
+
+    (define/augment (on-close)
+      (printf "Exit..\n")
+      (when (thread? wait-thread-id)
+        (kill-thread wait-thread-id))
+      (send fb-capture-timer stop))
+
+    (define/override (on-subwindow-char win k)
+      (define key (send k get-key-release-code))
+      ;(displayln key)
+      (cond
+        [(equal? key 'f12) (switch-screen-oreintation)]
+        ;[(equal? key 'q) (send this on-close)]
+        ))
+    ))
+
+
+(define WIDTH 360)
+(define HEIGHT 600)
+
+(define xframe (new sq-frame% [label "Seven Square"]))
+
+(define (showf) (send xframe show #t))
+(define (resize-frame w h) (send xframe resize w h))
+
 (define fbbitmap (make-object bitmap% 1 1 #f #t))
 (define fbhash 1024)
+(define landscape (/ pi 2))
+(define portrait (* pi 2))
+(define fbtheta portrait)
+
+(define draw-fb
+  (lambda (canvas dc)
+    (send dc draw-bitmap
+          (cond
+            [do-scale-pict
+             (pict->bitmap
+              (rotate
+               (scale (bitmap fbbitmap)
+                      (/ WIDTH (send fbbitmap get-width)))
+               fbtheta))]
+            [else fbbitmap])
+          0 0)))
+
+(define viewer (new canvas% [parent xframe]
+                    ;[min-width WIDTH]
+                    ;[min-height HEIGHT]
+                    [paint-callback draw-fb]))
+
+(define switch-screen-oreintation
+  (lambda ()
+    ; TODO: user width of frame
+    (define w (send xframe get-width))
+    (define h (send xframe get-height))
+    ;(printf "Rotate window: ~a,~a\n" w h)
+    (cond
+      [(equal? fbtheta landscape)
+       (set! fbtheta portrait)
+       (resize-frame h w)]
+      [(equal? fbtheta portrait)
+       (set! fbtheta landscape)
+       (resize-frame h w)])
+    (send viewer refresh)
+    ))
 
 (define (update-bitmap-size w h)
   (unless (and (equal? w (send fbbitmap get-width))
@@ -99,14 +143,7 @@
       (send fbbitmap set-argb-pixels 0 0 width height
             ; Fake rgba to argbraw, potential perf issue?
             (bytes-append (make-bytes 1 255) raw))
-      (send (send viewer get-dc) draw-bitmap
-            (cond
-              [do-scale-pict
-               (pict->bitmap
-                (scale (bitmap fbbitmap)
-                       (/ WIDTH width)))]
-              [else fbbitmap])
-            0 0))
+      (send viewer refresh))
 
     (define fb (read-fbinfo in))
     ;(printf "~a\n" fb)
