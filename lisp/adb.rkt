@@ -16,6 +16,7 @@
 
     (define host "localhost")
     (define port 5037)
+    (define connected #f)
     
     (define/public (connect host port)
       ;(TODO "connect to given host:port")
@@ -45,8 +46,10 @@
          (values #t "")]
         [(equal? status "FAIL")
          (define-values (len msg) (read-payload c-in))
+         (set! connected #f)
          (values #f (string-append "Protocol error: " msg))]
         [else
+         (set! connected #f)
          (values #f (string-append "Unknown status: " status))]))
 
     ; Switch socket transport type so that we can
@@ -58,13 +61,19 @@
       (sendquery cmd out)
       (read-status in))
 
+    (define connect-error
+      (lambda (errno) ; TODO: more detailed error info
+        (displayln "Failed to connect adb server")
+        (set! connected #f)
+        ;connected
+        ))
+
     ; query local adb server via socket
     (define (query cmd func #:persist-con [persist-con #f])
-      (with-handlers ([exn:fail:network?
-                       (lambda (errno) ; TODO: more detailed error info
-                         (displayln "Failed to connect adb server"))])
+      (with-handlers ([exn:fail:network? connect-error])
         (define-values (c-in c-out) (tcp-connect host port))
-        (printf "Connected, do query: ~a\n" cmd)
+        (set! connected #t)
+        ;(printf "Connected, do query: ~a\n" cmd)
 
         (when (and (>= (string-length cmd) 4)
                    (not (equal? "host" (substring cmd 0 4))))
@@ -79,7 +88,8 @@
         (when (not persist-con)
           (close-input-port c-in)
           (close-output-port c-out))
-      ))
+      )
+      connected)
 
     (define display-simple-reply
       (lambda (in out)
@@ -94,11 +104,10 @@
     
     (define default-shell-callback
       (lambda (in out)
-        (let loop ([fd in])
-          (define line (read-line fd))
-          (when (not (eof-object? line))
+        (let loop ([line (read-line in)])
+          (unless (eof-object? line)
             (display line)
-            (loop fd)))))
+            (loop (read-line in))))))
 
     ; Local services
     ;   shell/remount/reboot...
@@ -107,12 +116,32 @@
                                   #:persist-con [persist-con #f])
       (define cmd (format "~a:~a" name argv))
       (query cmd callback #:persist-con persist-con))
+
+    ; adb wait-for-device script
+    (define/public (wait-for-device)
+      (define wait-cb
+        (lambda (in out)
+          (display "Waiting for device...")
+          (let loop ([ret (read-string 4 in)])
+            (cond
+              [(equal? ret "OKAY")
+               (displayln "presents")]
+              [else (loop (read-string 4 in))]))))
+      (host-service 'wait-for-any #:cb wait-cb))
+
+    (define/public (version)
+      (define cb
+        (lambda (in out)
+          (define-values (_ ver) (read-payload in))
+          (displayln (string->number ver 16))))
+      (host-service 'version #:cb cb))
     ))
 
 (module+ main
   (define adb (new adb%))
   ;(send adb connect "localhost" 5037)
-  (send adb host-service 'version)
+  (send adb version)
+  (send adb wait-for-device)
   (send adb host-service 'devices)
   ;(send adb shell "logcat")
   (send adb local-service 'shell "ls -l /system/bin/sh")

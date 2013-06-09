@@ -5,7 +5,6 @@
 
 (require racket/gui)
 (require racket/draw)
-(require images/flomap)
 
 (struct point (x y) #:transparent)
 
