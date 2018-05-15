@@ -21,21 +21,7 @@ static pthread_mutex_t t_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  t_cond = PTHREAD_COND_INITIALIZER;
 
 #define DATA_NUMS 2*1000*1000
-#define CONSUMER_THREAD_NUMS 4
-
-#if 0
-static void
-init_queue(queue_t *q, int count)
-{
-    int i;
-
-    q_init(q);
-
-    for (i = 0; i < count; i ++) {
-        q_enqueue (q, (data_t) i);
-    }
-}
-#endif
+#define CONSUMER_THREAD_NUMS 8
 
 void *
 consumer_thread (void *data)
@@ -43,7 +29,7 @@ consumer_thread (void *data)
     int ret = TRUE;
     int count = 0;
     queue_t *q = (queue_t *) data;
-    data_t value;
+    int value;
 
     pthread_mutex_lock (&t_lock);
     g_thread_count++;
@@ -82,6 +68,11 @@ provider_thread (void *data)
     return NULL;
 }
 
+void list_dump_func(void *data)
+{
+    printf("%d\n", (int)data);
+}
+
 int main (int argc, char *argv[])
 {
     int node_nums = DATA_NUMS;
@@ -106,8 +97,10 @@ int main (int argc, char *argv[])
 
     q_init (&g_queue);
     for (i = 0; i < node_nums; i ++) {
-        q_enqueue (&g_queue, (data_t) i);
+        q_enqueue (&g_queue, (void*) i);
     }
+
+    //list_dump(&g_queue.head, list_dump_func);
 
     c_threads = (pthread_t *) malloc (sizeof(pthread_t) * thread_nums);
     for (i = 0; i < thread_nums; i ++) {

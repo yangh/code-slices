@@ -2,56 +2,43 @@
 #include <pthread.h>
 
 #include "queue.h"
+#include "list.h"
 #include "debug.h"
 
 void
 q_init (queue_t *q)
 {
-    q->head = q->tail = NULL;
+    list_init(&q->head);
     pthread_mutex_init (&q->lock, NULL);
 }
 
 void
 q_clean (queue_t *q)
 {
-    node_t *node = NULL;
+    void   *data = NULL;
+    int ret = TRUE;
 
-    pthread_mutex_lock (&q->lock);
-
-    node = q->head;
-    while (q->head != NULL) {
-        node = q->head;
-        q->head = node->next;
-        free (node);
+    while (ret) {
+        ret = q_dequeue (q, data);
     }
-
-    pthread_mutex_unlock (&q->lock);
     pthread_mutex_destroy (&q->lock);
 }
 
 int
-q_enqueue (queue_t *q, data_t d)
+q_enqueue (queue_t *q, void *data)
 {
-    node_t *node = NULL;
+    list_t *list = NULL;
 
     pthread_mutex_lock (&q->lock);
 
-    node = (node_t *) malloc (sizeof(node_t));
-    if (node == NULL) {
-        LOGE("Failed to alloc new node, no memory");
+    list = list_new(data);
+    if (list == NULL) {
+        LOGE("Failed to alloc new list, no memory");
         pthread_mutex_unlock (&q->lock);
         return FALSE;
     }
 
-    node->data = d;
-    node->next = NULL;
-
-    if (q->head == NULL) {
-        q->head = q->tail = node;
-    } else {
-        q->tail->next = node;
-        q->tail = node;
-    }
+    list_add (&q->head, list);
 
     pthread_mutex_unlock (&q->lock);
 
@@ -59,23 +46,24 @@ q_enqueue (queue_t *q, data_t d)
 }
 
 int
-q_dequeue (queue_t *q, data_t *d)
+q_dequeue (queue_t *q, void *data)
 {
-    node_t *node = NULL;
+    list_t *list = NULL;
 
     pthread_mutex_lock (&q->lock);
 
-    if (q->head == NULL) {
+    if (LIST_IS_EMPTY(&q->head)) {
         pthread_mutex_unlock (&q->lock);
         return FALSE;
     }
 
-    node = q->head;
-    *d = node->data;
-    q->head = node->next;
+    list = list_remove(&q->head, q->head.next);
+    if (NULL != data) {
+	data = list->data;
+    }
 
+    list_free(list);
     pthread_mutex_unlock (&q->lock);
-    free(node);
 
     return TRUE;
 }
