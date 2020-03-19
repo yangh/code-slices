@@ -13,8 +13,8 @@
 #define LOGD(...)
 #endif
 
-#define BUFFER_MAX       3
-#define CONSUMER_NUMS    4
+#define BUFFER_MAX       4
+#define CONSUMER_NUMS    2
 #define DATA_NUMS        2*100*100
 
 static pthread_mutex_t c_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -30,9 +30,15 @@ static void * consumer_thread (void *data)
 {
     int score = 0;
 
-    while (!end) {
+    while (1) {
         pthread_mutex_lock (&c_lock);
+        if (end) {
+            pthread_mutex_unlock (&c_lock);
+            break;
+        }
+
         if (BUFFER_IS_EMPTY()) {
+            LOGD("Buffer len: %d, wait\n", current);
             pthread_cond_wait (&c_cond, &c_lock);
         } else {
             LOGD("Buffer len: %d, current: %ld\n", current, buffer[current - 1]);
@@ -88,11 +94,12 @@ int main (int argc, char *argv[])
     pthread_create (&p_thread, NULL, producer_thread, &data_nums);
     pthread_join (p_thread, NULL);
 
+    pthread_mutex_lock (&c_lock);
     end = 1;
+    pthread_cond_broadcast (&c_cond);
+    pthread_mutex_unlock (&c_lock);
+
     for (i = 0; i < thread_nums; i ++) {
-        pthread_mutex_lock (&c_lock);
-        pthread_cond_broadcast (&c_cond);
-        pthread_mutex_unlock (&c_lock);
         pthread_join (c_threads[i], NULL);
     }
 
