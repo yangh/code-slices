@@ -2,7 +2,7 @@ all: clean test run
 
 SRCS = main.c
 
-CFLAGS = -Wall -g -DDEBUG=0 -O0
+CFLAGS = -Wall -g -DDEBUG=1 -O0
 LDFLAGS = -lpthread
 
 clean:

@@ -13,15 +13,16 @@
 #define LOGD(...)
 #endif
 
-#define BUFFER_MAX                3
-#define DATA_NUMS		2*100*100
-#define CONSUMER_THREAD_NUMS	4
+#define BUFFER_MAX       3
+#define CONSUMER_NUMS    4
+#define DATA_NUMS        2*100*100
 
 static pthread_mutex_t c_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  c_cond = PTHREAD_COND_INITIALIZER;
+static int end = 0;
+
 static long int buffer[BUFFER_MAX] = { 0 };
 static int current = 0;
-static int end = 0;
 #define BUFFER_IS_FULL()  (current == BUFFER_MAX)
 #define BUFFER_IS_EMPTY() (current == 0)
 
@@ -31,14 +32,14 @@ static void * consumer_thread (void *data)
 
     while (!end) {
         pthread_mutex_lock (&c_lock);
-	if (BUFFER_IS_EMPTY()) {
+        if (BUFFER_IS_EMPTY()) {
             pthread_cond_wait (&c_cond, &c_lock);
-	} else {
-            LOGD("People in line: %d, current: %ld\n", current, buffer[current - 1]);
-	    current--;
+        } else {
+            LOGD("Buffer len: %d, current: %ld\n", current, buffer[current - 1]);
+            current--;
             score++;
             pthread_cond_signal (&c_cond);
-	}
+        }
         pthread_mutex_unlock (&c_lock);
     }
 
@@ -52,14 +53,14 @@ static void * producer_thread (void *data)
 
     while (nums > 0) {
         pthread_mutex_lock (&c_lock);
-	if (BUFFER_IS_FULL()) {
+        if (BUFFER_IS_FULL()) {
             pthread_cond_wait (&c_cond, &c_lock);
-	} else {
-	    buffer[current] = nums;
-	    current++;
-	    nums--;
+        } else {
+            buffer[current] = nums;
+            current++;
+            nums--;
             pthread_cond_signal (&c_cond);
-	}
+        }
         pthread_mutex_unlock (&c_lock);
     }
 
@@ -70,7 +71,7 @@ static void * producer_thread (void *data)
 int main (int argc, char *argv[])
 {
     long int data_nums = DATA_NUMS;
-    int    thread_nums = CONSUMER_THREAD_NUMS;
+    int    thread_nums = CONSUMER_NUMS;
     pthread_t *c_threads;
     pthread_t p_thread;
     int i;
@@ -85,14 +86,13 @@ int main (int argc, char *argv[])
 
     /* Create producer */
     pthread_create (&p_thread, NULL, producer_thread, &data_nums);
-
     pthread_join (p_thread, NULL);
 
-    pthread_mutex_lock (&c_lock);
     end = 1;
-    pthread_cond_broadcast (&c_cond);
-    pthread_mutex_unlock (&c_lock);
     for (i = 0; i < thread_nums; i ++) {
+        pthread_mutex_lock (&c_lock);
+        pthread_cond_broadcast (&c_cond);
+        pthread_mutex_unlock (&c_lock);
         pthread_join (c_threads[i], NULL);
     }
 
