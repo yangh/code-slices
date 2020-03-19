@@ -29,13 +29,8 @@ static void * consumer_thread (void *data)
 {
     int score = 0;
 
-    while (1) {
+    while (!end) {
         pthread_mutex_lock (&c_lock);
-	if (end == 1) {
-        	pthread_mutex_unlock (&c_lock);
-		break;
-	}
-
 	if (BUFFER_IS_EMPTY()) {
             pthread_cond_wait (&c_cond, &c_lock);
 	} else {
@@ -48,7 +43,6 @@ static void * consumer_thread (void *data)
     }
 
     LOGI("consumer = %ld, score = %6d\n", pthread_self(), score);
-
     return NULL;
 }
 
