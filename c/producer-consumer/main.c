@@ -1,5 +1,16 @@
 /*
  * Producer & Consumer
+ *
+ *
+ *                       .----------->> Consumer 0
+ *   +----------+        | .--------->> Consumer 1
+ *   | Producer | >>---. | | .------->> Consumer 2
+ *   +----------+      | | | |
+ *                     | | | |
+ *                   | v ^ ^ ^ |
+ *                   |         |
+ *                   |  Buffer |
+ *                   +---------+
  */
 
 #include <stdio.h>
@@ -13,8 +24,8 @@
 #define LOGD(...)
 #endif
 
-#define BUFFER_MAX       4
-#define CONSUMER_NUMS    2
+#define BUFFER_MAX       3
+#define CONSUMER_NUMS    4
 #define DATA_NUMS        2*100*100
 
 static pthread_mutex_t c_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -49,7 +60,7 @@ static void * consumer_thread (void *data)
         pthread_mutex_unlock (&c_lock);
     }
 
-    LOGI("consumer = %ld, score = %6d\n", pthread_self(), score);
+    LOGI("consumer %p = %ld, score = %6d\n", data, pthread_self(), score);
     return NULL;
 }
 
@@ -78,16 +89,15 @@ int main (int argc, char *argv[])
 {
     long int data_nums = DATA_NUMS;
     int    thread_nums = CONSUMER_NUMS;
-    pthread_t *c_threads;
+    pthread_t c_threads[CONSUMER_NUMS];
     pthread_t p_thread;
     int i;
 
     LOGI("Consumer threads %d, datas %ld\n", thread_nums, data_nums);
 
     /* Create consumers */
-    c_threads = (pthread_t *) malloc (sizeof(pthread_t) * thread_nums);
     for (i = 0; i < thread_nums; i ++) {
-        pthread_create (&c_threads[i], NULL, consumer_thread, NULL);
+        pthread_create (&c_threads[i], NULL, consumer_thread, (void *) &c_threads[i]);
     }
 
     /* Create producer */
@@ -102,8 +112,6 @@ int main (int argc, char *argv[])
     for (i = 0; i < thread_nums; i ++) {
         pthread_join (c_threads[i], NULL);
     }
-
-    free(c_threads);
 
     return 0;
 }
